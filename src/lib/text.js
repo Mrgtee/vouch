@@ -197,7 +197,10 @@ export function extractKeywords(value, options = {}) {
     counts.set(token, (counts.get(token) ?? 0) + 1);
   }
 
+  const phraseKeywords = [...counts.keys()].filter((keyword) => keyword.includes(" "));
+
   return [...counts.entries()]
+    .filter(([keyword]) => !isRedundantSingleKeyword(keyword, phraseKeywords))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .slice(0, limit)
     .map(([keyword, weight]) => ({ keyword, weight }));
@@ -248,4 +251,12 @@ export function extractNumbers(value) {
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function isRedundantSingleKeyword(keyword, phraseKeywords) {
+  if (keyword.includes(" ")) {
+    return false;
+  }
+
+  return phraseKeywords.some((phrase) => phrase.split(/\s+/).includes(keyword));
 }

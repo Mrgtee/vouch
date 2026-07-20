@@ -7,13 +7,28 @@ import {
 import { cleanText } from "./text.js";
 import { validateApplicationPacketRequest } from "./validation.js";
 
+const LOW_SIGNAL_GAPS = new Set([
+  "analyst",
+  "candidate",
+  "data",
+  "improve",
+  "management",
+  "metrics",
+  "role",
+  "senior",
+  "translate"
+]);
+
 export function createApplicationPacket(rawPayload) {
   const request = validateApplicationPacketRequest(rawPayload);
   const analysis = analyzeVouchFit(request.resumeText, request.targetJobs);
   const candidateName = inferCandidateName(request.resumeText);
   const targetHeadline = inferTargetHeadline(request.targetJobs);
   const topMatched = analysis.matchedKeywords.slice(0, 14).map((item) => item.keyword);
-  const topMissing = analysis.missingKeywords.slice(0, 10).map((item) => item.keyword);
+  const topMissing = analysis.missingKeywords
+    .filter((item) => !LOW_SIGNAL_GAPS.has(item.keyword))
+    .slice(0, 10)
+    .map((item) => item.keyword);
   const evidenceBullets = buildEvidenceBullets(analysis.resumeLines, analysis.matchedKeywords);
 
   return {
@@ -172,7 +187,10 @@ function buildInterviewPrep(analysis, targetJobs) {
     answerFrame: "Situation, target metric, action taken, tradeoff, result, lesson."
   }));
 
-  const gapQuestions = analysis.missingKeywords.slice(0, 4).map((item) => ({
+  const gapQuestions = analysis.missingKeywords
+    .filter((item) => !LOW_SIGNAL_GAPS.has(item.keyword))
+    .slice(0, 4)
+    .map((item) => ({
     question: `This role mentions ${item.keyword}. What adjacent experience can you credibly point to?`,
     whyAsked: "This is a visible fit gap that may come up in screening.",
     answerFrame: "Name the gap, connect adjacent experience, describe a fast learning plan, avoid exaggeration."
@@ -182,7 +200,20 @@ function buildInterviewPrep(analysis, targetJobs) {
 }
 
 function buildPortfolioProjects(missingKeywords, targetJobs) {
-  return missingKeywords.slice(0, 5).map((keyword) => ({
+  const usefulGaps = missingKeywords.filter((keyword) => !LOW_SIGNAL_GAPS.has(keyword));
+
+  if (usefulGaps.length === 0) {
+    return [
+      {
+        title: "Role evidence proof sprint",
+        objective: `Create a concise case study that proves readiness for ${targetJobs[0].title}.`,
+        deliverable: "One-page case study with problem, method, tools, result, and screenshots or sample output.",
+        timeline: "2-5 focused hours"
+      }
+    ];
+  }
+
+  return usefulGaps.slice(0, 5).map((keyword) => ({
     title: `${titleCase(keyword)} proof sprint`,
     objective: `Create a small, public artifact that demonstrates ${keyword} for ${targetJobs[0].title}.`,
     deliverable: "One-page case study with problem, method, tools, result, and screenshots or sample output.",
