@@ -24,8 +24,11 @@ const STOP_WORDS = new Set([
   "but",
   "by",
   "can",
+  "candidate",
+  "communication",
   "did",
   "do",
+  "decisions",
   "does",
   "doing",
   "for",
@@ -33,6 +36,7 @@ const STOP_WORDS = new Set([
   "had",
   "has",
   "have",
+  "growth",
   "having",
   "he",
   "her",
@@ -63,6 +67,9 @@ const STOP_WORDS = new Set([
   "over",
   "own",
   "per",
+  "requiring",
+  "role",
+  "skills",
   "same",
   "she",
   "should",
@@ -164,9 +171,11 @@ export function splitSentences(value) {
 }
 
 export function tokenize(value) {
-  return cleanText(value)
+  return (cleanText(value)
     .toLowerCase()
-    .match(/[a-z][a-z0-9+#.-]{1,}/g) ?? [];
+    .match(/[a-z][a-z0-9+#.-]{1,}/g) ?? [])
+    .map((token) => token.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, ""))
+    .filter(Boolean);
 }
 
 export function extractKeywords(value, options = {}) {
@@ -217,7 +226,11 @@ export function hasKeyword(value, keyword) {
   }
 
   if (needle.includes(" ")) {
-    return haystack.includes(` ${needle} `);
+    const phrasePattern = needle
+      .split(/\s+/)
+      .map(escapeRegExp)
+      .join("[^a-z0-9+#.-]+");
+    return new RegExp(`(^|[^a-z0-9+#.-])${phrasePattern}([^a-z0-9+#.-]|$)`).test(haystack);
   }
 
   return new RegExp(`(^|[^a-z0-9+#.-])${escapeRegExp(needle)}([^a-z0-9+#.-]|$)`).test(haystack);
