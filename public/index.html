@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vouch | Career Workflow ASP</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">OKX.AI-ready ASP</p>
+        <h1>Vouch</h1>
+      </div>
+      <div class="status-pill" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">Checking API</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <section class="input-pane" aria-label="Vouch input workspace">
+        <div class="pane-heading">
+          <div>
+            <p class="eyebrow">Input</p>
+            <h2>Resume and target jobs</h2>
+          </div>
+          <button class="secondary-button" type="button" id="loadSampleButton">Load sample</button>
+        </div>
+
+        <label class="field">
+          <span>Resume text</span>
+          <textarea id="resumeText" rows="11" placeholder="Paste resume, LinkedIn profile, or career notes here."></textarea>
+        </label>
+
+        <label class="file-control">
+          <input id="resumeFile" type="file" accept=".txt,.md,.text" />
+          <span>Import .txt resume</span>
+        </label>
+
+        <div class="job-grid" id="jobGrid">
+          <article class="job-block">
+            <div class="job-title-row">
+              <strong>Target job 1</strong>
+              <span>Required</span>
+            </div>
+            <input id="jobTitle1" placeholder="Title, e.g. Senior Product Analyst" />
+            <input id="jobCompany1" placeholder="Company, optional" />
+            <input id="jobUrl1" placeholder="Job URL, optional" />
+            <textarea id="jobDescription1" rows="7" placeholder="Paste job description text."></textarea>
+          </article>
+
+          <article class="job-block">
+            <div class="job-title-row">
+              <strong>Target job 2</strong>
+              <span>Optional</span>
+            </div>
+            <input id="jobTitle2" placeholder="Title" />
+            <input id="jobCompany2" placeholder="Company" />
+            <input id="jobUrl2" placeholder="Job URL" />
+            <textarea id="jobDescription2" rows="7" placeholder="Paste another job description."></textarea>
+          </article>
+
+          <article class="job-block">
+            <div class="job-title-row">
+              <strong>Target job 3</strong>
+              <span>Optional</span>
+            </div>
+            <input id="jobTitle3" placeholder="Title" />
+            <input id="jobCompany3" placeholder="Company" />
+            <input id="jobUrl3" placeholder="Job URL" />
+            <textarea id="jobDescription3" rows="7" placeholder="Paste another job description."></textarea>
+          </article>
+        </div>
+
+        <div class="preference-row">
+          <label class="field">
+            <span>Location</span>
+            <input id="location" placeholder="Remote, Lagos, London..." />
+          </label>
+          <label class="field">
+            <span>Salary goal</span>
+            <input id="salaryGoal" placeholder="Optional" />
+          </label>
+          <label class="field">
+            <span>Tone</span>
+            <select id="tone">
+              <option value="confident">Confident</option>
+              <option value="concise">Concise</option>
+              <option value="executive">Executive</option>
+              <option value="warm">Warm</option>
+            </select>
+          </label>
+        </div>
+
+        <button class="primary-button" type="button" id="generateButton">Generate application packet</button>
+        <p class="privacy-note">Vouch processes this request in memory. The server does not persist candidate documents by default.</p>
+      </section>
+
+      <section class="output-pane" aria-label="Vouch output workspace">
+        <div class="pane-heading">
+          <div>
+            <p class="eyebrow">Output</p>
+            <h2>Application packet</h2>
+          </div>
+          <button class="secondary-button" type="button" id="copyJsonButton" disabled>Copy JSON</button>
+        </div>
+
+        <div class="score-strip">
+          <div class="score-box">
+            <span>Before</span>
+            <strong id="beforeScore">--</strong>
+          </div>
+          <div class="score-rail" aria-hidden="true">
+            <div class="score-fill" id="scoreFill"></div>
+          </div>
+          <div class="score-box">
+            <span>After</span>
+            <strong id="afterScore">--</strong>
+          </div>
+        </div>
+
+        <div class="tabs" role="tablist" aria-label="Output sections">
+          <button class="tab is-active" type="button" data-tab="overview">Overview</button>
+          <button class="tab" type="button" data-tab="resume">ATS resume</button>
+          <button class="tab" type="button" data-tab="interview">Interview</button>
+          <button class="tab" type="button" data-tab="json">JSON</button>
+        </div>
+
+        <div class="result-panel" id="resultPanel">
+          <div class="empty-state">
+            <div class="mini-chart" aria-hidden="true">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <h3>Turn a generic resume into a role-specific packet.</h3>
+            <p>Paste a resume and at least one target job, then generate a benchmarked career workflow.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
