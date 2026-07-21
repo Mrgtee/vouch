@@ -1,7 +1,9 @@
 const PAYMENT_MODES = new Set(["paid", "free"]);
+const AI_PROVIDERS = new Set(["openai", "local"]);
 const X_LAYER_NETWORK = "eip155:196";
-const DEFAULT_PRICE = "$0.05";
+const DEFAULT_PRICE = "$0.20";
 const DEFAULT_OKX_BASE_URL = "https://web3.okx.com";
+const DEFAULT_OPENAI_MODEL = "gpt-5";
 
 export function getRuntimeConfig(env = process.env) {
   const paymentMode = normalizePaymentMode(env.VOUCH_PAYMENT_MODE);
@@ -24,6 +26,13 @@ export function getRuntimeConfig(env = process.env) {
     },
     features: {
       fetchJobUrls: parseBoolean(env.VOUCH_ENABLE_URL_FETCH, true)
+    },
+    ai: {
+      provider: normalizeAiProvider(env.VOUCH_AI_PROVIDER),
+      model: cleanEnv(env.VOUCH_OPENAI_MODEL) || DEFAULT_OPENAI_MODEL,
+      apiKey: cleanEnv(env.OPENAI_API_KEY),
+      timeoutMs: normalizeInteger(env.VOUCH_OPENAI_TIMEOUT_MS, 45_000),
+      maxOutputTokens: normalizeInteger(env.VOUCH_OPENAI_MAX_OUTPUT_TOKENS, 7_000)
     }
   };
 
@@ -41,6 +50,14 @@ export function getPublicPaymentConfig(config) {
     protectedRoutes: config.payment.isPaid
       ? ["POST /api/v1/vouch/application-packet"]
       : []
+  };
+}
+
+export function getPublicAiConfig(config) {
+  return {
+    provider: config.ai.provider,
+    model: config.ai.provider === "openai" ? config.ai.model : "vouch-local-benchmark",
+    fallback: "local benchmark engine"
   };
 }
 
@@ -69,6 +86,9 @@ function validateConfig(config) {
   if (!/^\$\d+(?:\.\d{1,6})?$/.test(config.payment.price)) {
     missing.push("VOUCH_PRICE_USD");
   }
+  if (config.ai.provider === "openai" && !config.ai.apiKey) {
+    missing.push("OPENAI_API_KEY");
+  }
 
   if (missing.length > 0) {
     throw new Error(
@@ -94,6 +114,24 @@ function normalizePaymentMode(value) {
   }
 
   return mode;
+}
+
+function normalizeAiProvider(value) {
+  const provider = cleanEnv(value || "openai").toLowerCase();
+  if (!AI_PROVIDERS.has(provider)) {
+    throw new Error("VOUCH_AI_PROVIDER must be openai or local.");
+  }
+
+  return provider;
+}
+
+function normalizeInteger(value, fallback) {
+  const number = Number(value ?? fallback);
+  if (!Number.isInteger(number) || number <= 0) {
+    return fallback;
+  }
+
+  return number;
 }
 
 function isEvmAddress(value) {

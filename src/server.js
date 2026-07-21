@@ -8,8 +8,8 @@ import { ExactEvmScheme } from "@okxweb3/x402-evm/exact/server";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prepareApplicationPacketPayload } from "./lib/enrichment.js";
-import { createApplicationPacket } from "./lib/packet.js";
-import { getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
+import { createApplicationPacketWithAi } from "./lib/aiPacket.js";
+import { getPublicAiConfig, getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
 import { ValidationError } from "./lib/validation.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -29,8 +29,9 @@ app.get("/health", (_request, response) => {
   response.json({
     ok: true,
     service: "Vouch",
-    version: "0.2.0",
-    paymentMode: config.payment.mode
+    version: "0.3.0",
+    paymentMode: config.payment.mode,
+    ai: getPublicAiConfig(config)
   });
 });
 
@@ -47,7 +48,7 @@ app.post("/api/v1/vouch/application-packet", async (request, response, next) => 
     const payload = await prepareApplicationPacketPayload(request.body, {
       fetchJobUrls: config.features.fetchJobUrls
     });
-    response.json(await createApplicationPacket(payload));
+    response.json(await createApplicationPacketWithAi(payload, config.ai));
   } catch (error) {
     next(error);
   }
@@ -139,11 +140,12 @@ function buildManifest() {
 
   return {
     name: "Vouch",
-    version: "0.2.0",
+    version: "0.3.0",
     description:
-      "Paid, evidence-backed job-to-offer workflow for resumes and target roles.",
+      "Paid OpenAI-powered, evidence-backed job-to-offer workflow for resumes and target roles.",
     publicBaseUrl: config.publicBaseUrl,
     payment,
+    ai: getPublicAiConfig(config),
     endpoints: {
       applicationPacket: config.publicBaseUrl + "/api/v1/vouch/application-packet",
       a2mcp: config.publicBaseUrl + "/api/a2mcp",
@@ -238,7 +240,7 @@ async function handleA2Mcp(body) {
     const payload = await prepareApplicationPacketPayload(body.params?.arguments ?? {}, {
       fetchJobUrls: config.features.fetchJobUrls
     });
-    const packet = await createApplicationPacket(payload);
+    const packet = await createApplicationPacketWithAi(payload, config.ai);
     return {
       jsonrpc: "2.0",
       id: body.id ?? null,

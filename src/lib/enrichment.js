@@ -90,7 +90,7 @@ export async function fetchJobUrlText(url, options = {}) {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       headers: {
         accept: "text/html,text/plain,application/xhtml+xml",
-        "user-agent": "VouchCareerASP/0.2 (+https://vouch.ai)"
+        "user-agent": "VouchCareerASP/0.3 (+https://vouch.ai)"
       }
     });
 

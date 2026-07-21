@@ -42,7 +42,7 @@ export function createApplicationPacket(rawPayload) {
 
   return {
     service: "Vouch",
-    version: "0.2.0",
+    version: "0.3.0",
     packet: {
       fitScoreBefore: analysis.scoreBefore,
       fitScoreAfter: analysis.scoreAfter,

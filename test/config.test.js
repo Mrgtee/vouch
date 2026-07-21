@@ -26,11 +26,12 @@ test("accepts paid mode with x402 payment environment", () => {
     PORT: "3000",
     VOUCH_PAYMENT_MODE: "paid",
     VOUCH_PUBLIC_BASE_URL: "https://vouch.example",
-    VOUCH_PRICE_USD: "$0.05",
+    VOUCH_PRICE_USD: "$0.20",
     PAY_TO_ADDRESS: "0x000000000000000000000000000000000000dEaD",
     OKX_API_KEY: "key",
     OKX_SECRET_KEY: "secret",
-    OKX_PASSPHRASE: "passphrase"
+    OKX_PASSPHRASE: "passphrase",
+    OPENAI_API_KEY: "sk-test"
   });
   const publicPayment = getPublicPaymentConfig(config);
 
@@ -38,7 +39,7 @@ test("accepts paid mode with x402 payment environment", () => {
   assert.equal(config.payment.facilitatorBaseUrl, "https://web3.okx.com");
   assert.equal(publicPayment.mode, "paid");
   assert.equal(publicPayment.network, "eip155:196");
-  assert.equal(publicPayment.price, "$0.05");
+  assert.equal(publicPayment.price, "$0.20");
   assert.deepEqual(publicPayment.protectedRoutes, ["POST /api/v1/vouch/application-packet"]);
 });
 
@@ -48,12 +49,31 @@ test("normalizes unprefixed dollar prices", () => {
     PORT: "3000",
     VOUCH_PAYMENT_MODE: "paid",
     VOUCH_PUBLIC_BASE_URL: "https://vouch.example",
-    VOUCH_PRICE_USD: "0.05",
+    VOUCH_PRICE_USD: "0.20",
+    PAY_TO_ADDRESS: "0x000000000000000000000000000000000000dEaD",
+    OKX_API_KEY: "key",
+    OKX_SECRET_KEY: "secret",
+    OKX_PASSPHRASE: "passphrase",
+    OPENAI_API_KEY: "sk-test"
+  });
+
+  assert.equal(config.payment.price, "$0.20");
+});
+
+
+test("allows explicit local AI provider without an OpenAI key", () => {
+  const config = getRuntimeConfig({
+    PORT: "3000",
+    VOUCH_PAYMENT_MODE: "paid",
+    VOUCH_AI_PROVIDER: "local",
+    VOUCH_PUBLIC_BASE_URL: "https://vouch.example",
+    VOUCH_PRICE_USD: "0.20",
     PAY_TO_ADDRESS: "0x000000000000000000000000000000000000dEaD",
     OKX_API_KEY: "key",
     OKX_SECRET_KEY: "secret",
     OKX_PASSPHRASE: "passphrase"
   });
 
-  assert.equal(config.payment.price, "$0.05");
+  assert.equal(config.ai.provider, "local");
+  assert.equal(config.payment.price, "$0.20");
 });
