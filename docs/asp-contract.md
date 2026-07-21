@@ -20,7 +20,7 @@ This endpoint is x402-protected in production. Without a valid payment signature
 
 - Scheme: `exact`
 - Network: `eip155:196` X Layer
-- Price: configured by `VOUCH_PRICE_USD`, default `$0.25`
+- Price: configured by `VOUCH_PRICE_USD`, default `$0.05`
 - Receiving wallet: configured by `PAY_TO_ADDRESS`
 - Facilitator: OKX x402 SDK via `OKX_API_KEY`, `OKX_SECRET_KEY`, and `OKX_PASSPHRASE`
 

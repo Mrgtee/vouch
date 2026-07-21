@@ -22,7 +22,7 @@ Service name: `Create Application Packet`
 
 Service type: `A2MCP`
 
-Fee: `$0.25 per packet` to start. Raise later if reviews prove willingness to pay.
+Fee: `$0.05 per packet` to start. Raise later if reviews prove willingness to pay.
 
 Paid endpoint:
 

@@ -36,7 +36,7 @@ The `/api/a2mcp` helper exposes tool metadata, but in paid mode it does not exec
 
 ```bash
 VOUCH_PAYMENT_MODE=paid
-VOUCH_PRICE_USD=0.25
+VOUCH_PRICE_USD=0.05
 PAY_TO_ADDRESS=0xYourXLayerReceivingWallet
 OKX_API_KEY=your_okx_developer_api_key
 OKX_SECRET_KEY=your_okx_developer_secret_key

@@ -26,7 +26,7 @@ test("accepts paid mode with x402 payment environment", () => {
     PORT: "3000",
     VOUCH_PAYMENT_MODE: "paid",
     VOUCH_PUBLIC_BASE_URL: "https://vouch.example",
-    VOUCH_PRICE_USD: "$0.25",
+    VOUCH_PRICE_USD: "$0.05",
     PAY_TO_ADDRESS: "0x000000000000000000000000000000000000dEaD",
     OKX_API_KEY: "key",
     OKX_SECRET_KEY: "secret",
@@ -38,7 +38,7 @@ test("accepts paid mode with x402 payment environment", () => {
   assert.equal(config.payment.facilitatorBaseUrl, "https://web3.okx.com");
   assert.equal(publicPayment.mode, "paid");
   assert.equal(publicPayment.network, "eip155:196");
-  assert.equal(publicPayment.price, "$0.25");
+  assert.equal(publicPayment.price, "$0.05");
   assert.deepEqual(publicPayment.protectedRoutes, ["POST /api/v1/vouch/application-packet"]);
 });
 
@@ -48,12 +48,12 @@ test("normalizes unprefixed dollar prices", () => {
     PORT: "3000",
     VOUCH_PAYMENT_MODE: "paid",
     VOUCH_PUBLIC_BASE_URL: "https://vouch.example",
-    VOUCH_PRICE_USD: "0.25",
+    VOUCH_PRICE_USD: "0.05",
     PAY_TO_ADDRESS: "0x000000000000000000000000000000000000dEaD",
     OKX_API_KEY: "key",
     OKX_SECRET_KEY: "secret",
     OKX_PASSPHRASE: "passphrase"
   });
 
-  assert.equal(config.payment.price, "$0.25");
+  assert.equal(config.payment.price, "$0.05");
 });

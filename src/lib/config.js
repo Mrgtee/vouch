@@ -1,6 +1,6 @@
 const PAYMENT_MODES = new Set(["paid", "free"]);
 const X_LAYER_NETWORK = "eip155:196";
-const DEFAULT_PRICE = "$0.25";
+const DEFAULT_PRICE = "$0.05";
 const DEFAULT_OKX_BASE_URL = "https://web3.okx.com";
 
 export function getRuntimeConfig(env = process.env) {

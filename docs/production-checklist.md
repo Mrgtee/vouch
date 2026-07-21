@@ -12,7 +12,7 @@ Do not commit these values.
 ## Required Public Env
 
 - `VOUCH_PAYMENT_MODE=paid`
-- `VOUCH_PRICE_USD=0.25`
+- `VOUCH_PRICE_USD=0.05`
 - `VOUCH_PUBLIC_BASE_URL=https://YOUR_DEPLOYED_DOMAIN`
 - `OKX_BASE_URL=https://web3.okx.com`
 - `VOUCH_ENABLE_URL_FETCH=true`
