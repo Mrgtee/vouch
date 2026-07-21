@@ -4,25 +4,30 @@ Target length: 90 seconds
 
 ## Setup
 
-Open the deployed Vouch URL.
+Open the deployed Vouch URL and keep the manifest endpoint ready in another tab:
+
+```txt
+/api/v1/vouch/manifest
+```
 
 ## Walkthrough
 
-1. Click `Load sample`.
-2. Point out that the input includes one resume and two target jobs.
-3. Click `Generate application packet`.
-4. Show the before and after fit scores.
-5. Open `Overview`.
-   - Show recruiter summary.
-   - Show visible strengths.
-   - Show gaps to close.
-6. Open `ATS resume`.
-   - Show that the generated resume is grounded in supplied evidence.
-7. Open `Interview`.
-   - Show mock recruiter screen, interview questions, and portfolio proof sprints.
-8. Open `JSON`.
-   - Show that this is not only a UI. It is an ASP result that another agent can consume.
+1. Show the manifest payment block.
+   - Mode: paid
+   - Network: X Layer
+   - Price: configured per packet
+   - Protected route: `POST /api/v1/vouch/application-packet`
+2. Send one unpaid request to the application packet endpoint.
+   - Show the expected `HTTP 402` challenge.
+3. Complete the paid request through OKX.AI / OKX Agent Payments Protocol.
+4. Show the returned packet.
+5. Point out that the input can include pasted job descriptions or public job URLs.
+6. Show the before and after fit scores.
+7. Open the recruiter summary.
+8. Open the ATS resume.
+9. Open the interview prep and proof sprint sections.
+10. Close by showing the integrity notes: Vouch rewrites from supplied evidence and marks missing proof as gaps.
 
 ## Closing Line
 
-`Vouch turns a generic resume into a role-specific job-to-offer packet, with evidence checks so candidates can improve positioning without inventing experience.`
+`Vouch turns a generic resume and target jobs into a paid, evidence-backed job-to-offer packet. It helps candidates improve positioning without inventing experience.`

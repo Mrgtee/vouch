@@ -4,17 +4,27 @@
 
 Name: `Vouch`
 
-One-line description: `Evidence-backed job-to-offer workflow for resumes and target roles.`
+One-line description: `Paid evidence-backed job-to-offer workflow for resumes and target roles.`
 
-Recommended listing category: `Resume & Career Workflows` or `Lifestyle Companion`
+Recommended listing category: `Resume & Career Workflows`
 
-Recommended launch mode: `A2MCP free endpoint first, x402 pay-per-call after public demo validation.`
+Launch mode: `Paid A2MCP x402 endpoint on X Layer.`
 
 ## Endpoint
 
 `POST /api/v1/vouch/application-packet`
 
-### Request
+This endpoint is x402-protected in production. Without a valid payment signature, it should return `HTTP 402`. After verified payment, it returns the packet JSON.
+
+## Payment
+
+- Scheme: `exact`
+- Network: `eip155:196` X Layer
+- Price: configured by `VOUCH_PRICE_USD`, default `$0.25`
+- Receiving wallet: configured by `PAY_TO_ADDRESS`
+- Facilitator: OKX x402 SDK via `OKX_API_KEY`, `OKX_SECRET_KEY`, and `OKX_PASSPHRASE`
+
+## Request
 
 ```json
 {
@@ -23,7 +33,7 @@ Recommended launch mode: `A2MCP free endpoint first, x402 pay-per-call after pub
     {
       "title": "Senior Product Analyst",
       "company": "ExampleCo",
-      "description": "Job description text...",
+      "description": "Job description text, optional if url is provided.",
       "url": "https://example.com/jobs/123"
     }
   ],
@@ -35,12 +45,12 @@ Recommended launch mode: `A2MCP free endpoint first, x402 pay-per-call after pub
 }
 ```
 
-### Response
+## Response
 
 ```json
 {
   "service": "Vouch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packet": {
     "fitScoreBefore": 54,
     "fitScoreAfter": 83,
@@ -50,15 +60,17 @@ Recommended launch mode: `A2MCP free endpoint first, x402 pay-per-call after pub
     "interviewPrep": [],
     "portfolioProjects": [],
     "salaryPositioning": {},
-    "gapBenchmark": []
+    "gapBenchmark": [],
+    "jobBreakdown": []
   }
 }
 ```
 
 ## Quality Bar
 
-- The service should work with one resume and one to three jobs.
-- Output should separate proven claims from suggested gaps.
-- Scoring must be explainable.
-- The response should be useful even without external model credentials.
-- No sensitive candidate data should be stored by default.
+- The service works with one resume and one to three target jobs.
+- Target jobs can be pasted descriptions or public URLs.
+- Output separates proven claims from suggested gaps.
+- Scoring is explainable.
+- The endpoint is paid in production and cannot be bypassed through the metadata helper.
+- No sensitive candidate data is stored by default.
