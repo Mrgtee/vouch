@@ -1,82 +1,159 @@
-import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
-import { extname, join, normalize } from "node:path";
+import express from "express";
+import {
+  paymentMiddleware,
+  x402ResourceServer
+} from "@okxweb3/x402-express";
+import { OKXFacilitatorClient } from "@okxweb3/x402-core";
+import { ExactEvmScheme } from "@okxweb3/x402-evm/exact/server";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareApplicationPacketPayload } from "./lib/enrichment.js";
 import { createApplicationPacket } from "./lib/packet.js";
+import { getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
 import { ValidationError } from "./lib/validation.js";
 
-const PORT = Number(process.env.PORT ?? 3000);
-const BASE_URL = process.env.VOUCH_PUBLIC_BASE_URL ?? `http://localhost:${PORT}`;
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PUBLIC_DIR = join(ROOT, "public");
-const MAX_BODY_BYTES = 1_000_000;
+const JSON_LIMIT = "1mb";
 
-const server = createServer(async (request, response) => {
+const config = getRuntimeConfig();
+const app = express();
+
+app.set("trust proxy", true);
+app.disable("x-powered-by");
+app.use(setSecurityHeaders);
+app.use(express.json({ limit: JSON_LIMIT }));
+
+
+app.get("/health", (_request, response) => {
+  response.json({
+    ok: true,
+    service: "Vouch",
+    version: "0.2.0",
+    paymentMode: config.payment.mode
+  });
+});
+
+app.get("/api/v1/vouch/manifest", (_request, response) => {
+  response.json(buildManifest());
+});
+
+if (config.payment.isPaid) {
+  app.use(createPaymentMiddleware());
+}
+
+app.post("/api/v1/vouch/application-packet", async (request, response, next) => {
   try {
-    setCorsHeaders(response);
-
-    if (request.method === "OPTIONS") {
-      return sendJson(response, 204, null);
-    }
-
-    const url = new URL(request.url ?? "/", BASE_URL);
-
-    if (request.method === "GET" && url.pathname === "/health") {
-      return sendJson(response, 200, {
-        ok: true,
-        service: "Vouch",
-        version: "0.1.0"
-      });
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/v1/vouch/manifest") {
-      return sendJson(response, 200, buildManifest());
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/v1/vouch/application-packet") {
-      const body = await readJsonBody(request);
-      return sendJson(response, 200, createApplicationPacket(body));
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/a2mcp") {
-      const body = await readJsonBody(request);
-      return sendJson(response, 200, handleA2Mcp(body));
-    }
-
-    if (request.method === "GET") {
-      return serveStatic(url.pathname, response);
-    }
-
-    return sendJson(response, 404, {
-      error: "not_found",
-      message: "Route not found."
+    const payload = await prepareApplicationPacketPayload(request.body, {
+      fetchJobUrls: config.features.fetchJobUrls
     });
+    response.json(await createApplicationPacket(payload));
   } catch (error) {
-    return handleError(response, error);
+    next(error);
   }
 });
 
-server.listen(PORT, () => {
-  console.log(`Vouch ASP listening on ${BASE_URL}`);
+app.post("/api/a2mcp", async (request, response, next) => {
+  try {
+    response.json(await handleA2Mcp(request.body));
+  } catch (error) {
+    next(error);
+  }
 });
 
+app.use(express.static(PUBLIC_DIR, { etag: false, maxAge: 0 }));
+
+app.use((request, response) => {
+  if (request.method === "GET") {
+    return response.sendFile(join(PUBLIC_DIR, "index.html"));
+  }
+
+  return response.status(404).json({
+    error: "not_found",
+    message: "Route not found."
+  });
+});
+
+app.use((error, _request, response, _next) => {
+  if (error instanceof ValidationError) {
+    return response.status(error.statusCode).json({
+      error: "validation_error",
+      message: error.message,
+      details: error.details
+    });
+  }
+
+  const statusCode = error.statusCode && Number.isInteger(error.statusCode) ? error.statusCode : 500;
+  return response.status(statusCode).json({
+    error: statusCode >= 500 ? "internal_error" : "request_error",
+    message: statusCode >= 500 ? "Vouch could not complete the request." : error.message
+  });
+});
+
+app.listen(config.port, () => {
+  const paymentLabel = config.payment.isPaid
+    ? "paid " + config.payment.price + " to " + config.payment.payToAddress
+    : "free development mode";
+  console.log("Vouch ASP listening on " + config.publicBaseUrl + " (" + paymentLabel + ")");
+});
+
+function createPaymentMiddleware() {
+  const facilitatorClient = new OKXFacilitatorClient({
+    apiKey: config.payment.okxApiKey,
+    secretKey: config.payment.okxSecretKey,
+    passphrase: config.payment.okxPassphrase,
+    baseUrl: config.payment.facilitatorBaseUrl || undefined,
+    syncSettle: config.payment.syncSettle
+  });
+  const resourceServer = new x402ResourceServer(facilitatorClient).register(
+    config.payment.network,
+    new ExactEvmScheme()
+  );
+
+  return paymentMiddleware(
+    {
+      "POST /api/v1/vouch/application-packet": {
+        accepts: {
+          scheme: "exact",
+          network: config.payment.network,
+          payTo: config.payment.payToAddress,
+          price: config.payment.price,
+          maxTimeoutSeconds: 300
+        },
+        description:
+          "Vouch application packet: evidence-backed resume-to-job benchmark, ATS resume, recruiter screen, interview prep, and fit-gap plan.",
+        mimeType: "application/json"
+      }
+    },
+    resourceServer,
+    {
+      appName: "Vouch",
+      currentUrl: config.publicBaseUrl + "/api/v1/vouch/application-packet",
+      testnet: false
+    }
+  );
+}
+
 function buildManifest() {
+  const payment = getPublicPaymentConfig(config);
+
   return {
     name: "Vouch",
-    version: "0.1.0",
+    version: "0.2.0",
     description:
-      "Evidence-backed job-to-offer workflow for resumes and target roles.",
-    publicBaseUrl: BASE_URL,
+      "Paid, evidence-backed job-to-offer workflow for resumes and target roles.",
+    publicBaseUrl: config.publicBaseUrl,
+    payment,
     endpoints: {
-      applicationPacket: `${BASE_URL}/api/v1/vouch/application-packet`,
-      a2mcp: `${BASE_URL}/api/a2mcp`,
-      health: `${BASE_URL}/health`
+      applicationPacket: config.publicBaseUrl + "/api/v1/vouch/application-packet",
+      a2mcp: config.publicBaseUrl + "/api/a2mcp",
+      health: config.publicBaseUrl + "/health"
     },
     tools: [
       {
         name: "vouch_create_application_packet",
         description:
-          "Benchmark a resume against one to three jobs and return an ATS resume, recruiter screen, interview prep, and fit-gap plan.",
+          "Benchmark a resume against one to three jobs and return an ATS resume, recruiter screen, interview prep, salary positioning, and fit-gap plan.",
         inputSchema: {
           type: "object",
           required: ["resumeText", "targetJobs"],
@@ -91,12 +168,11 @@ function buildManifest() {
               maxItems: 3,
               items: {
                 type: "object",
-                required: ["description"],
                 properties: {
                   title: { type: "string" },
                   company: { type: "string" },
                   url: { type: "string" },
-                  description: { type: "string" }
+                  description: { type: "string", description: "Paste job text, or provide url and Vouch will fetch the page." }
                 }
               }
             },
@@ -120,7 +196,7 @@ function buildManifest() {
   };
 }
 
-function handleA2Mcp(body) {
+async function handleA2Mcp(body) {
   if (body?.method === "tools/list") {
     return {
       jsonrpc: "2.0",
@@ -139,12 +215,30 @@ function handleA2Mcp(body) {
         id: body.id ?? null,
         error: {
           code: -32601,
-          message: `Unknown tool: ${name || "missing"}`
+          message: "Unknown tool: " + (name || "missing")
         }
       };
     }
 
-    const packet = createApplicationPacket(body.params?.arguments ?? {});
+    if (config.payment.isPaid) {
+      return {
+        jsonrpc: "2.0",
+        id: body.id ?? null,
+        error: {
+          code: 402,
+          message: "This Vouch call is paid. Use the x402-protected applicationPacket endpoint from the manifest.",
+          data: {
+            endpoint: buildManifest().endpoints.applicationPacket,
+            payment: buildManifest().payment
+          }
+        }
+      };
+    }
+
+    const payload = await prepareApplicationPacketPayload(body.params?.arguments ?? {}, {
+      fetchJobUrls: config.features.fetchJobUrls
+    });
+    const packet = await createApplicationPacket(payload);
     return {
       jsonrpc: "2.0",
       id: body.id ?? null,
@@ -170,104 +264,25 @@ function handleA2Mcp(body) {
   };
 }
 
-async function readJsonBody(request) {
-  const chunks = [];
-  let size = 0;
-
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > MAX_BODY_BYTES) {
-      const error = new Error("Request body is too large.");
-      error.statusCode = 413;
-      throw error;
-    }
-
-    chunks.push(chunk);
-  }
-
-  const raw = Buffer.concat(chunks).toString("utf8");
-  if (!raw.trim()) {
-    return {};
-  }
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    const error = new Error("Request body must be valid JSON.");
-    error.statusCode = 400;
-    throw error;
-  }
-}
-
-async function serveStatic(pathname, response) {
-  const safePath = pathname === "/" ? "/index.html" : pathname;
-  const resolved = normalize(join(PUBLIC_DIR, safePath));
-
-  if (!resolved.startsWith(PUBLIC_DIR)) {
-    return sendJson(response, 403, {
-      error: "forbidden",
-      message: "Invalid path."
-    });
-  }
-
-  try {
-    const file = await readFile(resolved);
-    response.writeHead(200, {
-      "content-type": contentType(resolved),
-      "cache-control": "no-store"
-    });
-    response.end(file);
-  } catch {
-    sendJson(response, 404, {
-      error: "not_found",
-      message: "Static asset not found."
-    });
-  }
-}
-
-function handleError(response, error) {
-  if (error instanceof ValidationError) {
-    return sendJson(response, error.statusCode, {
-      error: "validation_error",
-      message: error.message,
-      details: error.details
-    });
-  }
-
-  const statusCode = error.statusCode && Number.isInteger(error.statusCode) ? error.statusCode : 500;
-  return sendJson(response, statusCode, {
-    error: statusCode >= 500 ? "internal_error" : "request_error",
-    message: statusCode >= 500 ? "Vouch could not complete the request." : error.message
-  });
-}
-
-function sendJson(response, statusCode, payload) {
-  response.writeHead(statusCode, {
-    "content-type": "application/json; charset=utf-8",
-    "cache-control": "no-store"
-  });
-
-  response.end(payload === null ? "" : JSON.stringify(payload, null, 2));
-}
-
-function setCorsHeaders(response) {
+function setSecurityHeaders(request, response, next) {
   response.setHeader("access-control-allow-origin", "*");
   response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
-  response.setHeader("access-control-allow-headers", "content-type, payment, x-payment");
-}
+  response.setHeader(
+    "access-control-allow-headers",
+    "content-type, payment, x-payment, payment-signature"
+  );
+  response.setHeader(
+    "access-control-expose-headers",
+    "payment-required, payment-response, x-payment, payment-signature"
+  );
+  response.setHeader("x-content-type-options", "nosniff");
+  response.setHeader("referrer-policy", "no-referrer");
+  response.setHeader("cache-control", "no-store");
 
-function contentType(pathname) {
-  const extension = extname(pathname);
-  switch (extension) {
-    case ".css":
-      return "text/css; charset=utf-8";
-    case ".js":
-      return "text/javascript; charset=utf-8";
-    case ".json":
-      return "application/json; charset=utf-8";
-    case ".svg":
-      return "image/svg+xml";
-    default:
-      return "text/html; charset=utf-8";
+  if (request.method === "OPTIONS") {
+    response.status(204).end();
+    return;
   }
+
+  next();
 }

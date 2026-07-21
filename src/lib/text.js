@@ -131,6 +131,27 @@ const IMPORTANT_PHRASES = [
   "user research"
 ];
 
+const KEYWORD_VARIANTS = new Map([
+  ["a/b testing", ["ab testing", "experimentation", "experiment", "experiments"]],
+  ["ab testing", ["a/b testing", "experimentation", "experiment", "experiments"]],
+  ["cross functional", ["cross-functional", "stakeholder", "stakeholder management"]],
+  ["customer insights", ["customer insight", "user insights", "user research", "customer research"]],
+  ["dashboard", ["dashboards", "dashboarding", "business intelligence", "bi"]],
+  ["dashboards", ["dashboard", "dashboarding", "business intelligence", "bi"]],
+  ["dashboarding", ["dashboard", "dashboards", "business intelligence", "bi"]],
+  ["diagnostics", ["diagnostic", "root cause analysis", "funnel analysis", "analysis"]],
+  ["executive", ["leadership", "stakeholder", "stakeholder reporting", "executive-ready"]],
+  ["experimentation", ["experiment", "experiments", "a/b testing", "ab testing"]],
+  ["impact", ["improved", "improvement", "improvements", "increased", "reduced", "revenue", "retention", "conversion"]],
+  ["product analytics", ["product analyst", "product analysis", "product metrics", "analytics"]],
+  ["retention analysis", ["retention", "cohort analysis", "churn analysis", "renewal analysis"]],
+  ["revenue reporting", ["revenue", "arr reporting", "sales reporting", "commercial reporting"]],
+  ["senior", ["lead", "led", "ownership", "owned", "mentored", "manager", "principal"]],
+  ["stakeholder", ["stakeholders", "stakeholder management", "cross functional", "cross-functional"]],
+  ["stakeholder management", ["stakeholder", "stakeholders", "cross functional", "cross-functional"]],
+  ["storytelling", ["storytelling", "story", "narrative", "communication", "presented"]]
+]);
+
 export function cleanText(value) {
   return String(value ?? "")
     .replace(/\r/g, "\n")
@@ -222,8 +243,38 @@ export function uniqueKeywords(keywordSets, limit = 60) {
 }
 
 export function hasKeyword(value, keyword) {
-  const haystack = ` ${cleanText(value).toLowerCase()} `;
+  const haystack = " " + cleanText(value).toLowerCase() + " ";
+  return keywordVariants(keyword).some((variant) => hasExactKeyword(haystack, variant));
+}
+
+function keywordVariants(keyword) {
   const needle = cleanText(keyword).toLowerCase();
+  if (!needle) {
+    return [];
+  }
+
+  const variants = new Set([needle]);
+  for (const variant of KEYWORD_VARIANTS.get(needle) ?? []) {
+    variants.add(variant);
+  }
+
+  if (needle.includes(" ")) {
+    variants.add(needle.split(/\s+/).map(looseStem).join(" "));
+  } else {
+    variants.add(singularize(needle));
+    variants.add(looseStem(needle));
+  }
+
+  for (const [canonical, mapped] of KEYWORD_VARIANTS.entries()) {
+    if (mapped.includes(needle)) {
+      variants.add(canonical);
+    }
+  }
+
+  return [...variants].filter(Boolean);
+}
+
+function hasExactKeyword(haystack, needle) {
   if (!needle) {
     return false;
   }
@@ -232,11 +283,40 @@ export function hasKeyword(value, keyword) {
     const phrasePattern = needle
       .split(/\s+/)
       .map(escapeRegExp)
-      .join("[^a-z0-9+#.-]+");
-    return new RegExp(`(^|[^a-z0-9+#.-])${phrasePattern}([^a-z0-9+#.-]|$)`).test(haystack);
+      .join("[^a-z0-9+#.]+");
+    return new RegExp("(^|[^a-z0-9+#.])" + phrasePattern + "([^a-z0-9+#.]|$)").test(haystack);
   }
 
-  return new RegExp(`(^|[^a-z0-9+#.-])${escapeRegExp(needle)}([^a-z0-9+#.-]|$)`).test(haystack);
+  return new RegExp("(^|[^a-z0-9+#.-])" + escapeRegExp(needle) + "([^a-z0-9+#.-]|$)").test(haystack);
+}
+
+function looseStem(token) {
+  let stem = singularize(token);
+  if (stem.endsWith("ying") && stem.length > 5) {
+    stem = stem.slice(0, -4) + "y";
+  } else if (stem.endsWith("ing") && stem.length > 5) {
+    stem = stem.slice(0, -3);
+  } else if (stem.endsWith("ics") && stem.length > 5) {
+    stem = stem.slice(0, -1);
+  }
+
+  return singularize(stem);
+}
+
+function singularize(token) {
+  if (token.endsWith("ies") && token.length > 4) {
+    return token.slice(0, -3) + "y";
+  }
+
+  if (token.endsWith("ses") && token.length > 4) {
+    return token.slice(0, -2);
+  }
+
+  if (token.endsWith("s") && token.length > 3 && !token.endsWith("ss")) {
+    return token.slice(0, -1);
+  }
+
+  return token;
 }
 
 export function pickEvidenceLines(resumeText, keyword, limit = 3) {

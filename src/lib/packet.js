@@ -19,12 +19,21 @@ const LOW_SIGNAL_GAPS = new Set([
   "translate"
 ]);
 
+const DISPLAY_KEYWORDS = new Map([
+  ["diagnostics", "funnel diagnostics"],
+  ["executive", "executive-ready communication"],
+  ["impact", "measurable impact"],
+  ["sql", "SQL"],
+  ["stakeholder", "stakeholder communication"],
+  ["storytelling", "impact storytelling"]
+]);
+
 export function createApplicationPacket(rawPayload) {
   const request = validateApplicationPacketRequest(rawPayload);
   const analysis = analyzeVouchFit(request.resumeText, request.targetJobs);
   const candidateName = inferCandidateName(request.resumeText);
   const targetHeadline = inferTargetHeadline(request.targetJobs);
-  const topMatched = analysis.matchedKeywords.slice(0, 14).map((item) => item.keyword);
+  const topMatched = selectTopMatchedKeywords(analysis.matchedKeywords);
   const topMissing = analysis.missingKeywords
     .filter((item) => !LOW_SIGNAL_GAPS.has(item.keyword))
     .slice(0, 10)
@@ -33,7 +42,7 @@ export function createApplicationPacket(rawPayload) {
 
   return {
     service: "Vouch",
-    version: "0.1.0",
+    version: "0.2.0",
     packet: {
       fitScoreBefore: analysis.scoreBefore,
       fitScoreAfter: analysis.scoreAfter,
@@ -62,7 +71,7 @@ export function createApplicationPacket(rawPayload) {
       interviewPrep: buildInterviewPrep(analysis, request.targetJobs),
       portfolioProjects: buildPortfolioProjects(topMissing, request.targetJobs),
       salaryPositioning: buildSalaryPositioning(request.candidatePreferences, analysis),
-      gapBenchmark: analysis.gapBenchmark,
+      gapBenchmark: analysis.gapBenchmark.filter((gap) => !LOW_SIGNAL_GAPS.has(gap.requirement)),
       jobBreakdown: analysis.jobAnalyses.map((job) => ({
         jobId: job.jobId,
         title: job.title,
@@ -79,6 +88,12 @@ export function createApplicationPacket(rawPayload) {
       ]
     }
   };
+}
+
+function selectTopMatchedKeywords(matchedKeywords) {
+  const useful = matchedKeywords.filter((item) => !LOW_SIGNAL_GAPS.has(item.keyword));
+  const selected = useful.length >= 4 ? useful : matchedKeywords;
+  return selected.slice(0, 14).map((item) => item.keyword);
 }
 
 function buildAtsResume({
@@ -134,8 +149,8 @@ function strengthenBullet(line, keyword) {
   const cleaned = cleanText(line).replace(/^[-*•]\s*/, "");
   const hasMetric = /\d/.test(cleaned);
   const suffix = hasMetric
-    ? `, reinforcing ${keyword} for the target role.`
-    : `, with clearer proof needed to quantify impact around ${keyword}.`;
+    ? `, reinforcing ${displayKeyword(keyword)} for the target role.`
+    : `, with clearer proof needed to quantify impact around ${displayKeyword(keyword)}.`;
 
   if (cleaned.endsWith(".")) {
     return `${cleaned.slice(0, -1)}${suffix}`;
@@ -172,17 +187,18 @@ function buildMockRecruiterScreen({ analysis, topMatched, topMissing, evidenceBu
     beforeScore: analysis.scoreBefore,
     afterScore: analysis.scoreAfter,
     whyInterview: evidenceBullets.slice(0, 3),
-    concerns: topMissing.slice(0, 5).map((keyword) => `Limited visible proof for ${keyword}.`),
+    concerns: topMissing.slice(0, 5).map((keyword) => `Limited visible proof for ${displayKeyword(keyword)}.`),
     screeningQuestions: topMatched.slice(0, 4).map((keyword) => ({
       topic: keyword,
-      question: `Walk me through a specific example where you used ${keyword} to create a measurable outcome.`
+      question: `Walk me through a specific example where you used ${displayKeyword(keyword)} to create a measurable outcome.`
     }))
   };
 }
 
 function buildInterviewPrep(analysis, targetJobs) {
-  const coreQuestions = analysis.matchedKeywords.slice(0, 5).map((item) => ({
-    question: `Tell me about a time you used ${item.keyword} in a role similar to ${targetJobs[0].title}.`,
+  const matchedQuestionKeywords = analysis.matchedKeywords.filter((item) => !LOW_SIGNAL_GAPS.has(item.keyword));
+  const coreQuestions = matchedQuestionKeywords.slice(0, 5).map((item) => ({
+    question: `Tell me about a time you used ${displayKeyword(item.keyword)} in a role similar to ${targetJobs[0].title}.`,
     whyAsked: "The resume has evidence for this requirement, so the candidate should be ready to defend it.",
     answerFrame: "Situation, target metric, action taken, tradeoff, result, lesson."
   }));
@@ -191,7 +207,7 @@ function buildInterviewPrep(analysis, targetJobs) {
     .filter((item) => !LOW_SIGNAL_GAPS.has(item.keyword))
     .slice(0, 4)
     .map((item) => ({
-    question: `This role mentions ${item.keyword}. What adjacent experience can you credibly point to?`,
+    question: `This role mentions ${displayKeyword(item.keyword)}. What adjacent experience can you credibly point to?`,
     whyAsked: "This is a visible fit gap that may come up in screening.",
     answerFrame: "Name the gap, connect adjacent experience, describe a fast learning plan, avoid exaggeration."
   }));
@@ -215,7 +231,7 @@ function buildPortfolioProjects(missingKeywords, targetJobs) {
 
   return usefulGaps.slice(0, 5).map((keyword) => ({
     title: `${titleCase(keyword)} proof sprint`,
-    objective: `Create a small, public artifact that demonstrates ${keyword} for ${targetJobs[0].title}.`,
+    objective: `Create a small, public artifact that demonstrates ${displayKeyword(keyword)} for ${targetJobs[0].title}.`,
     deliverable: "One-page case study with problem, method, tools, result, and screenshots or sample output.",
     timeline: "2-5 focused hours"
   }));
@@ -238,8 +254,12 @@ function buildSalaryPositioning(preferences, analysis) {
   };
 }
 
+function displayKeyword(keyword) {
+  return DISPLAY_KEYWORDS.get(keyword) ?? keyword;
+}
+
 function formatList(values) {
-  const cleanValues = values.map(cleanText).filter(Boolean);
+  const cleanValues = values.map((value) => cleanText(displayKeyword(value))).filter(Boolean);
   if (cleanValues.length === 0) {
     return "";
   }
@@ -252,7 +272,7 @@ function formatList(values) {
 }
 
 function titleCase(value) {
-  return cleanText(value)
+  return cleanText(displayKeyword(value))
     .split(" ")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");

@@ -113,7 +113,14 @@ async function generatePacket() {
       },
       body: JSON.stringify(payload)
     });
-    const data = await response.json();
+    const data = await readJsonResponse(response);
+
+    if (response.status === 402) {
+      throw {
+        message: "Payment required before Vouch can generate this packet. Use an OKX.AI/x402-capable client to pay and replay the request.",
+        paymentRequired: data
+      };
+    }
 
     if (!response.ok) {
       throw data;
@@ -262,6 +269,19 @@ function renderError(error) {
       ${details}
     </div>
   `;
+}
+
+async function readJsonResponse(response) {
+  const text = await response.text();
+  if (!text) {
+    return {};
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
 }
 
 async function copyJson() {
