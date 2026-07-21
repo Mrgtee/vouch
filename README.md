@@ -43,6 +43,12 @@ Open `http://localhost:3000`.
 
 The first version is intentionally stateless. Uploaded resume text and job descriptions are processed in memory for the request and are not persisted by the server.
 
+## Submission Assets
+
+- [ASP contract](docs/asp-contract.md)
+- [OKX.AI listing draft](docs/okx-ai-listing.md)
+- [Demo script](docs/demo-script.md)
+
 ## Hackathon Demo Story
 
 1. Paste a generic resume.
