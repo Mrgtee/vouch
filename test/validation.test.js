@@ -59,3 +59,25 @@ test("rejects more than three target jobs", () => {
     /Vouch could not create the application packet/
   );
 });
+
+test("accepts JSON-string params from CLI payment replay", () => {
+  const request = validateApplicationPacketRequest({
+    resumeText,
+    targetJobs: JSON.stringify([
+      {
+        title: "Senior Product Analyst",
+        company: "Acme",
+        description: jobDescription
+      }
+    ]),
+    candidatePreferences: JSON.stringify({
+      salaryGoal: "145k base",
+      tone: "warm"
+    })
+  });
+
+  assert.equal(request.targetJobs.length, 1);
+  assert.equal(request.targetJobs[0].title, "Senior Product Analyst");
+  assert.equal(request.candidatePreferences.salaryGoal, "145k base");
+  assert.equal(request.candidatePreferences.tone, "warm");
+});

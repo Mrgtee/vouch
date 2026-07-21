@@ -31,7 +31,7 @@ export function validateApplicationPacketRequest(payload) {
     });
   }
 
-  const targetJobsInput = body.targetJobs ?? body.target_jobs;
+  const targetJobsInput = parseStructuredParam(body.targetJobs ?? body.target_jobs);
   if (!Array.isArray(targetJobsInput) || targetJobsInput.length === 0) {
     errors.push({
       field: "targetJobs",
@@ -51,7 +51,7 @@ export function validateApplicationPacketRequest(payload) {
   }
 
   const candidatePreferences = normalizePreferences(
-    body.candidatePreferences ?? body.candidate_preferences
+    parseStructuredParam(body.candidatePreferences ?? body.candidate_preferences)
   );
 
   if (errors.length > 0) {
@@ -65,8 +65,26 @@ export function validateApplicationPacketRequest(payload) {
   };
 }
 
+function parseStructuredParam(value) {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const text = value.trim();
+  if (!text || !["{", "["].includes(text.at(0))) {
+    return value;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return value;
+  }
+}
+
 function normalizeJob(job, index, errors) {
-  const source = job && typeof job === "object" ? job : {};
+  const parsedJob = parseStructuredParam(job);
+  const source = parsedJob && typeof parsedJob === "object" ? parsedJob : {};
   const title = cleanText(source.title);
   const company = cleanText(source.company);
   const url = cleanText(source.url);
