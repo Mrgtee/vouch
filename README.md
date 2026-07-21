@@ -1,6 +1,6 @@
 # Vouch
 
-Vouch is a paid OKX.AI-ready career workflow ASP. It turns a candidate resume and one to three target jobs into an evidence-backed application packet:
+Vouch is a paid OKX.AI-ready, OpenAI-powered career workflow ASP. It turns a candidate resume and one to three target jobs into an evidence-backed application packet:
 
 - ATS-ready resume
 - recruiter-facing summary
@@ -14,7 +14,7 @@ The product principle is simple: Vouch may improve positioning, but it must not 
 
 ## Production Shape
 
-Vouch is a paid A2MCP-style HTTP service. Production defaults to x402 paid mode and refuses to boot unless the receiving wallet and OKX facilitator credentials are configured.
+Vouch is a paid A2MCP-style HTTP service. Production defaults to x402 paid mode and OpenAI packet generation. It refuses to boot unless the receiving wallet, OKX facilitator credentials, and `OPENAI_API_KEY` are configured.
 
 Paid endpoint:
 
@@ -36,13 +36,16 @@ The `/api/a2mcp` helper exposes tool metadata, but in paid mode it does not exec
 
 ```bash
 VOUCH_PAYMENT_MODE=paid
-VOUCH_PRICE_USD=0.05
+VOUCH_PRICE_USD=0.20
 PAY_TO_ADDRESS=0xYourXLayerReceivingWallet
 OKX_API_KEY=your_okx_developer_api_key
 OKX_SECRET_KEY=your_okx_developer_secret_key
 OKX_PASSPHRASE=your_okx_developer_passphrase
 OKX_BASE_URL=https://web3.okx.com
 VOUCH_PUBLIC_BASE_URL=https://YOUR_DEPLOYED_DOMAIN
+VOUCH_AI_PROVIDER=openai
+VOUCH_OPENAI_MODEL=gpt-5
+OPENAI_API_KEY=your_openai_api_key
 ```
 
 For local development only:
@@ -50,6 +53,13 @@ For local development only:
 ```bash
 VOUCH_PAYMENT_MODE=free npm run dev
 ```
+
+## What Makes It Real
+
+- The paid endpoint is protected before generation, so unpaid calls receive `HTTP 402`.
+- OpenAI drafts the career packet only after the payment middleware grants the request.
+- Vouch preserves trusted local fit scores, job coverage, and gap evidence so the model cannot turn missing proof into claimed experience.
+- If OpenAI is temporarily unavailable, the local benchmark packet is returned with `generation.provider=local_fallback` instead of failing silently.
 
 ## Local Verification
 

@@ -6,16 +6,19 @@
 - `OKX_API_KEY`: OKX Developer Portal API key.
 - `OKX_SECRET_KEY`: OKX Developer Portal secret key.
 - `OKX_PASSPHRASE`: OKX Developer Portal passphrase.
+- `OPENAI_API_KEY`: OpenAI API key used to generate the paid career packet.
 
 Do not commit these values.
 
 ## Required Public Env
 
 - `VOUCH_PAYMENT_MODE=paid`
-- `VOUCH_PRICE_USD=0.05`
+- `VOUCH_PRICE_USD=0.20`
 - `VOUCH_PUBLIC_BASE_URL=https://YOUR_DEPLOYED_DOMAIN`
 - `OKX_BASE_URL=https://web3.okx.com`
 - `VOUCH_ENABLE_URL_FETCH=true`
+- `VOUCH_AI_PROVIDER=openai`
+- `VOUCH_OPENAI_MODEL=gpt-5`
 
 ## Self-Checks
 
@@ -47,6 +50,7 @@ PAYMENT-RESPONSE: <settlement proof>
 ## Hard Rules
 
 - Do not run production with `VOUCH_PAYMENT_MODE=free`.
+- Do not run paid production with `VOUCH_AI_PROVIDER=local` unless explicitly doing an emergency fallback test.
 - Do not use a placeholder `PAY_TO_ADDRESS`.
 - Do not register the ASP until the deployed endpoint returns `HTTP 402` without payment.
 - Do not claim PDF/DOCX upload support until parser support is implemented.
