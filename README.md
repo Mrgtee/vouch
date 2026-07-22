@@ -70,6 +70,18 @@ VOUCH_PAYMENT_MODE=free npm run dev
 
 Open `http://localhost:3000` when using local free mode.
 
+## OKX CLI Routing
+
+Some networks can time out when connecting directly to `https://web3.okx.com`. For repeatable OKX verification from this repo, run OKX commands through the local route wrapper:
+
+```bash
+npm run okx:chains
+npm run okx:agents
+npm run okx:run -- onchainos payment quote https://vouch-production-852d.up.railway.app/api/v1/vouch/application-packet --method POST
+```
+
+The wrapper only reroutes `web3.okx.com:443` through the known working OKX edge while preserving the real `web3.okx.com` TLS host. It does not sign payments or bypass any OKX confirmation step.
+
 ## Real Job Inputs
 
 Each target job can include either a pasted `description` or a public `url`. If the description is missing and `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches the job page, extracts readable text, and benchmarks against that text. Candidate data is still processed in memory and is not persisted by default.

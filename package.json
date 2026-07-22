@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
-    "test": "node --test test/*.test.js"
+    "test": "node --test test/*.test.js",
+    "okx:run": "node scripts/okx-run.mjs --",
+    "okx:chains": "node scripts/okx-run.mjs -- onchainos wallet chains",
+    "okx:agents": "node scripts/okx-run.mjs -- onchainos agent get-my-agents"
   },
   "engines": {
     "node": ">=20"
