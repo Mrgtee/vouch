@@ -69,6 +69,19 @@ Example request body:
 
 Each target job may include a pasted `description` or a public `url`. When `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches missing job descriptions from public URLs and blocks private-network targets. For GET replay, pass `resumeText` plus `targetJobs` as a JSON array string, or pass `serviceParams` as a JSON object containing the same fields.
 
+Paid responses include the original `packet` object plus an agent-friendly envelope:
+
+```json
+{
+  "ok": true,
+  "summary": "Fit score improved from 54 to 83...",
+  "deliverable": { "format": "markdown+json", "markdown": "# Vouch Resume-to-Offer Packet..." },
+  "content": [{ "type": "text", "text": "# Vouch Resume-to-Offer Packet..." }],
+  "structuredContent": { "packet": {} },
+  "packet": {}
+}
+```
+
 ## Setup
 
 ```bash

@@ -10,7 +10,7 @@ Category: `Resume & Career Workflows`
 
 Short description:
 
-`Paid OpenAI-powered, evidence-backed job-to-offer workflow that benchmarks a resume against target jobs and returns an ATS resume, recruiter screen, interview prep, portfolio proof sprints, salary positioning, and fit-gap plan.`
+`Paid evidence-backed job-to-offer workflow that benchmarks a resume against target jobs and returns an ATS resume, recruiter screen, interview prep, portfolio proof sprints, salary positioning, and fit-gap plan.`
 
 Long description:
 
@@ -22,7 +22,7 @@ Service name: `Create Application Packet`
 
 Service type: `A2MCP`
 
-Fee: `$0.20 per packet` for the full OpenAI-powered application packet.
+Fee: `$0.20 per packet` for the full Vouch application packet.
 
 Paid endpoint:
 

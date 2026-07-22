@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { prepareApplicationPacketPayload } from "./lib/enrichment.js";
 import { createApplicationPacketWithAi } from "./lib/aiPacket.js";
 import { getPublicAiConfig, getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
+import { formatApplicationPacketResult } from "./lib/deliverable.js";
 import { ValidationError, normalizeApplicationPacketRequestPayload } from "./lib/validation.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -32,7 +33,7 @@ app.get("/health", (_request, response) => {
   response.json({
     ok: true,
     service: "Vouch",
-    version: "0.3.2",
+    version: "0.3.3",
     paymentMode: config.payment.mode,
     ai: getPublicAiConfig(config)
   });
@@ -116,7 +117,8 @@ async function sendApplicationPacket(rawPayload, response) {
   const payload = await prepareApplicationPacketPayload(normalizedPayload, {
     fetchJobUrls: config.features.fetchJobUrls
   });
-  return response.json(await createApplicationPacketWithAi(payload, config.ai));
+  const packet = await createApplicationPacketWithAi(payload, config.ai);
+  return response.json(formatApplicationPacketResult(packet));
 }
 
 function hasApplicationPacketInput(payload) {
@@ -226,9 +228,9 @@ function buildManifest() {
 
   return {
     name: "Vouch",
-    version: "0.3.2",
+    version: "0.3.3",
     description:
-      "Paid OpenAI-powered, evidence-backed job-to-offer workflow for resumes and target roles.",
+      "Paid evidence-backed job-to-offer workflow for resumes and target roles.",
     publicBaseUrl: config.publicBaseUrl,
     payment,
     ai: getPublicAiConfig(config),

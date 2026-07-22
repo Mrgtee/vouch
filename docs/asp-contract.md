@@ -4,7 +4,7 @@
 
 Name: `Vouch`
 
-One-line description: `Paid OpenAI-powered, evidence-backed job-to-offer workflow for resumes and target roles.`
+One-line description: `Paid evidence-backed job-to-offer workflow that benchmarks a resume against target roles and returns an application packet.`
 
 Recommended listing category: `Resume & Career Workflows`
 
@@ -51,7 +51,25 @@ This endpoint is x402-protected in production. Without a valid payment signature
 ```json
 {
   "service": "Vouch",
-  "version": "0.3.2",
+  "version": "0.3.3",
+  "ok": true,
+  "summary": "Fit score improved from 54 to 83...",
+  "deliverable": {
+    "title": "Vouch Resume-to-Offer Packet for ExampleCo Senior Product Analyst",
+    "summary": "Fit score improved from 54 to 83...",
+    "format": "markdown+json",
+    "markdown": "# Vouch Resume-to-Offer Packet...",
+    "packet": {}
+  },
+  "content": [
+    { "type": "text", "text": "# Vouch Resume-to-Offer Packet..." },
+    { "type": "json", "json": { "packet": {} } }
+  ],
+  "structuredContent": {
+    "service": "Vouch",
+    "version": "0.3.3",
+    "packet": {}
+  },
   "packet": {
     "fitScoreBefore": 54,
     "fitScoreAfter": 83,
