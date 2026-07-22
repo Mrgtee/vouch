@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import { prepareApplicationPacketPayload } from "./lib/enrichment.js";
 import { createApplicationPacketWithAi } from "./lib/aiPacket.js";
 import { getPublicAiConfig, getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
-import { ValidationError } from "./lib/validation.js";
+import { ValidationError, normalizeApplicationPacketRequestPayload } from "./lib/validation.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PUBLIC_DIR = join(ROOT, "public");
@@ -30,7 +30,7 @@ app.get("/health", (_request, response) => {
   response.json({
     ok: true,
     service: "Vouch",
-    version: "0.3.1",
+    version: "0.3.2",
     paymentMode: config.payment.mode,
     ai: getPublicAiConfig(config)
   });
@@ -44,20 +44,17 @@ if (config.payment.isPaid) {
   app.use(createPaymentMiddleware());
 }
 
-app.get(APPLICATION_PACKET_ROUTE, (_request, response) => {
-  response.status(405).json({
-    error: "method_not_allowed",
-    message: "Use POST with a JSON body containing resumeText and targetJobs to generate a Vouch application packet.",
-    inputSchema: getApplicationPacketInputSchema()
-  });
+app.get(APPLICATION_PACKET_ROUTE, async (request, response, next) => {
+  try {
+    await sendApplicationPacket(request.query, response);
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post(APPLICATION_PACKET_ROUTE, async (request, response, next) => {
   try {
-    const payload = await prepareApplicationPacketPayload(request.body, {
-      fetchJobUrls: config.features.fetchJobUrls
-    });
-    response.json(await createApplicationPacketWithAi(payload, config.ai));
+    await sendApplicationPacket(request.body, response);
   } catch (error) {
     next(error);
   }
@@ -107,6 +104,42 @@ app.listen(config.port, () => {
   console.log("Vouch ASP listening on " + config.publicBaseUrl + " (" + paymentLabel + ")");
 });
 
+async function sendApplicationPacket(rawPayload, response) {
+  const normalizedPayload = normalizeApplicationPacketRequestPayload(rawPayload);
+
+  if (!hasApplicationPacketInput(normalizedPayload)) {
+    return response.status(422).json(getInputRequiredResponse());
+  }
+
+  const payload = await prepareApplicationPacketPayload(normalizedPayload, {
+    fetchJobUrls: config.features.fetchJobUrls
+  });
+  return response.json(await createApplicationPacketWithAi(payload, config.ai));
+}
+
+function hasApplicationPacketInput(payload) {
+  return Boolean(
+    payload &&
+      typeof payload === "object" &&
+      (payload.resumeText || payload.resume_text) &&
+      (payload.targetJobs || payload.target_jobs)
+  );
+}
+
+function getInputRequiredResponse() {
+  return {
+    error: "input_required",
+    message: "Provide resumeText and targetJobs to generate a Vouch application packet.",
+    required: ["resumeText", "targetJobs"],
+    inputSchema: getApplicationPacketInputSchema(),
+    acceptedShapes: [
+      { method: "POST", body: { resumeText: "...", targetJobs: [{ title: "...", company: "...", url: "...", description: "..." }] } },
+      { method: "GET", query: { resumeText: "...", targetJobs: "JSON array string" } },
+      { method: "GET", query: { serviceParams: "JSON object containing resumeText and targetJobs" } }
+    ]
+  };
+}
+
 function createPaymentMiddleware() {
   const facilitatorClient = new OKXFacilitatorClient({
     apiKey: config.payment.okxApiKey,
@@ -122,30 +155,12 @@ function createPaymentMiddleware() {
 
   return paymentMiddleware(
     {
-      ["GET " + APPLICATION_PACKET_ROUTE]: {
-        accepts: {
-          scheme: "exact",
-          network: config.payment.network,
-          payTo: config.payment.payToAddress,
-          price: config.payment.price,
-          maxTimeoutSeconds: 300
-        },
-        description:
-          "Vouch application packet x402 check route. Use POST with resumeText and targetJobs to generate the paid packet.",
-        mimeType: "application/json"
-      },
-      ["POST " + APPLICATION_PACKET_ROUTE]: {
-        accepts: {
-          scheme: "exact",
-          network: config.payment.network,
-          payTo: config.payment.payToAddress,
-          price: config.payment.price,
-          maxTimeoutSeconds: 300
-        },
-        description:
-          "Vouch application packet: evidence-backed resume-to-job benchmark, ATS resume, recruiter screen, interview prep, and fit-gap plan.",
-        mimeType: "application/json"
-      }
+      ["GET " + APPLICATION_PACKET_ROUTE]: createApplicationPacketRouteConfig(
+        "Vouch application packet endpoint. Provide resumeText and targetJobs as query parameters or serviceParams JSON to generate the paid packet."
+      ),
+      ["POST " + APPLICATION_PACKET_ROUTE]: createApplicationPacketRouteConfig(
+        "Vouch application packet: evidence-backed resume-to-job benchmark, ATS resume, recruiter screen, interview prep, and fit-gap plan."
+      )
     },
     resourceServer,
     {
@@ -156,12 +171,40 @@ function createPaymentMiddleware() {
   );
 }
 
+function createApplicationPacketRouteConfig(description) {
+  return {
+    accepts: {
+      scheme: "exact",
+      network: config.payment.network,
+      payTo: config.payment.payToAddress,
+      price: config.payment.price,
+      maxTimeoutSeconds: 300
+    },
+    description,
+    mimeType: "application/json",
+    unpaidResponseBody: () => ({
+      contentType: "application/json",
+      body: getInputRequiredResponse()
+    }),
+    extensions: {
+      outputSchema: {
+        input: {
+          type: "http",
+          method: "POST",
+          bodyType: "json",
+          body: getApplicationPacketInputSchema()
+        }
+      }
+    }
+  };
+}
+
 function buildManifest() {
   const payment = getPublicPaymentConfig(config);
 
   return {
     name: "Vouch",
-    version: "0.3.1",
+    version: "0.3.2",
     description:
       "Paid OpenAI-powered, evidence-backed job-to-offer workflow for resumes and target roles.",
     publicBaseUrl: config.publicBaseUrl,

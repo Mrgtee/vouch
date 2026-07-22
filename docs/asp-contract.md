@@ -12,7 +12,7 @@ Launch mode: `Paid A2MCP x402 endpoint on X Layer.`
 
 ## Endpoint
 
-`POST /api/v1/vouch/application-packet`
+`GET|POST /api/v1/vouch/application-packet`
 
 This endpoint is x402-protected in production. Without a valid payment signature, it should return `HTTP 402`. After verified payment, it returns the packet JSON.
 
@@ -51,7 +51,7 @@ This endpoint is x402-protected in production. Without a valid payment signature
 ```json
 {
   "service": "Vouch",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "packet": {
     "fitScoreBefore": 54,
     "fitScoreAfter": 83,

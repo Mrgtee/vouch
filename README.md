@@ -45,7 +45,7 @@ GET  /api/v1/vouch/application-packet
 POST /api/v1/vouch/application-packet
 ```
 
-The `GET` method is protected so OKX.AI marketplace validators receive a standard x402 challenge on the registered URL. Actual packet generation uses `POST` with JSON input.
+Both methods are protected so OKX.AI marketplace validators and task runners receive a standard x402 challenge on the registered URL. `POST` accepts JSON input. `GET` is also supported after payment for marketplace replay compatibility and accepts either direct query params or a `serviceParams` JSON object.
 
 Example request body:
 
@@ -67,7 +67,7 @@ Example request body:
 }
 ```
 
-Each target job may include a pasted `description` or a public `url`. When `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches missing job descriptions from public URLs and blocks private-network targets.
+Each target job may include a pasted `description` or a public `url`. When `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches missing job descriptions from public URLs and blocks private-network targets. For GET replay, pass `resumeText` plus `targetJobs` as a JSON array string, or pass `serviceParams` as a JSON object containing the same fields.
 
 ## Setup
 

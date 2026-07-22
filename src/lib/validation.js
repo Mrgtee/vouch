@@ -20,7 +20,7 @@ export class ValidationError extends Error {
 }
 
 export function validateApplicationPacketRequest(payload) {
-  const body = payload && typeof payload === "object" ? payload : {};
+  const body = normalizeApplicationPacketRequestPayload(payload);
   const errors = [];
   const resumeText = clampText(body.resumeText ?? body.resume_text, LIMITS.maxResumeChars);
 
@@ -65,6 +65,32 @@ export function validateApplicationPacketRequest(payload) {
   };
 }
 
+export function normalizeApplicationPacketRequestPayload(payload) {
+  const body = toPlainObject(parseStructuredParam(normalizeParamValue(payload)));
+  const wrapper = toPlainObject(
+    parseStructuredParam(
+      normalizeParamValue(
+        body.serviceParams ??
+          body.service_params ??
+          body.arguments ??
+          body.args ??
+          body.params ??
+          body.input ??
+          body.body
+      )
+    )
+  );
+
+  if (hasApplicationPacketFields(wrapper)) {
+    return {
+      ...wrapper,
+      ...body
+    };
+  }
+
+  return body;
+}
+
 function parseStructuredParam(value) {
   if (typeof value !== "string") {
     return value;
@@ -80,6 +106,40 @@ function parseStructuredParam(value) {
   } catch {
     return value;
   }
+}
+
+function normalizeParamValue(value) {
+  if (!Array.isArray(value)) {
+    return value;
+  }
+
+  if (value.length === 1 && typeof value[0] === "string") {
+    return normalizeParamValue(value[0]);
+  }
+
+  return value.map(normalizeParamValue);
+}
+
+function toPlainObject(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entryValue]) => [
+      key,
+      parseStructuredParam(normalizeParamValue(entryValue))
+    ])
+  );
+}
+
+function hasApplicationPacketFields(value) {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      !Array.isArray(value) &&
+      (value.resumeText || value.resume_text || value.targetJobs || value.target_jobs)
+  );
 }
 
 function normalizeJob(job, index, errors) {

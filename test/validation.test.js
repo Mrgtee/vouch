@@ -81,3 +81,45 @@ test("accepts JSON-string params from CLI payment replay", () => {
   assert.equal(request.candidatePreferences.salaryGoal, "145k base");
   assert.equal(request.candidatePreferences.tone, "warm");
 });
+
+
+test("accepts serviceParams wrapper from OKX marketplace replay", () => {
+  const request = validateApplicationPacketRequest({
+    serviceParams: JSON.stringify({
+      resumeText,
+      targetJobs: [
+        {
+          title: "Senior Product Analyst",
+          company: "Acme",
+          description: jobDescription
+        }
+      ],
+      candidatePreferences: {
+        tone: "concise"
+      }
+    })
+  });
+
+  assert.equal(request.resumeText, resumeText);
+  assert.equal(request.targetJobs[0].company, "Acme");
+  assert.equal(request.candidatePreferences.tone, "concise");
+});
+
+test("accepts single-value query arrays from GET replay", () => {
+  const request = validateApplicationPacketRequest({
+    resumeText: [resumeText],
+    targetJobs: [
+      JSON.stringify([
+        {
+          title: "Senior Product Analyst",
+          company: "Acme",
+          description: jobDescription
+        }
+      ])
+    ]
+  });
+
+  assert.equal(request.resumeText, resumeText);
+  assert.equal(request.targetJobs.length, 1);
+  assert.equal(request.targetJobs[0].title, "Senior Product Analyst");
+});
