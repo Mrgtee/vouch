@@ -1,102 +1,150 @@
 # Vouch
 
-Vouch is a paid OKX.AI-ready, OpenAI-powered career workflow ASP. It turns a candidate resume and one to three target jobs into an evidence-backed application packet:
+Vouch is an evidence-backed career workflow ASP for turning a candidate resume and one to three target jobs into a structured application packet. It is built as a Node.js/Express service with an x402-protected production endpoint for OKX Agent Payments Protocol payments.
 
-- ATS-ready resume
-- recruiter-facing summary
-- mock recruiter screen
-- fit-gap benchmark
-- interview prep
-- portfolio proof sprints
-- salary positioning
+Vouch is not a generic resume writer. Its core behavior is job-to-resume benchmarking: it compares the evidence provided by the candidate against each role, rewrites only what can be supported, and keeps missing requirements visible as gaps.
 
-The product principle is simple: Vouch may improve positioning, but it must not invent experience. Every strong claim should be grounded in the candidate's supplied resume/profile evidence.
+## Features
 
-## Production Shape
+- ATS-oriented resume rewrite grounded in the experience provided by the candidate
+- Fit-gap benchmark for each target role
+- Recruiter-facing summary and mock recruiter screen
+- Interview preparation prompts based on the target roles
+- Portfolio proof-sprint suggestions for missing evidence
+- Salary-positioning guidance from candidate goals and role context
+- Optional job-description fetching from public job URLs
+- Paid production access through x402 on X Layer
 
-Vouch is a paid A2MCP-style HTTP service. Production defaults to x402 paid mode and OpenAI packet generation. It refuses to boot unless the receiving wallet, OKX facilitator credentials, and `OPENAI_API_KEY` are configured.
+## Architecture
 
-Paid endpoint:
+- Runtime: Node.js 20+ with Express
+- Payments: OKX x402 middleware with the exact EVM scheme
+- AI generation: OpenAI when configured, with a deterministic local fallback
+- Public client: static files in `public/`
+- Core packet logic: `src/lib/`
+- Tests: Node.js built-in test runner under `test/`
+
+Production mode protects the packet endpoint before generation. Unpaid calls receive `HTTP 402`; paid calls are settled through the configured OKX facilitator before the service creates a packet.
+
+## API
+
+### Public Endpoints
+
+```txt
+GET  /health
+GET  /api/v1/vouch/manifest
+POST /api/a2mcp
+```
+
+`/api/a2mcp` exposes tool metadata. In paid mode, tool execution is intentionally redirected to the protected packet endpoint.
+
+### Paid Endpoint
 
 ```txt
 POST /api/v1/vouch/application-packet
 ```
 
-Public endpoints:
+Example request body:
 
-```txt
-GET /health
-GET /api/v1/vouch/manifest
-POST /api/a2mcp
+```json
+{
+  "resumeText": "Candidate resume, LinkedIn export, or profile notes...",
+  "targetJobs": [
+    {
+      "title": "Product Engineer",
+      "company": "Example Co",
+      "description": "Pasted job description..."
+    }
+  ],
+  "candidatePreferences": {
+    "location": "Remote",
+    "salaryGoal": "$120k",
+    "tone": "concise"
+  }
+}
 ```
 
-The `/api/a2mcp` helper exposes tool metadata, but in paid mode it does not execute the packet generator directly. Packet generation must go through the x402-protected endpoint.
+Each target job may include a pasted `description` or a public `url`. When `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches missing job descriptions from public URLs and blocks private-network targets.
 
-## Required Production Env
+## Setup
 
 ```bash
+npm install
+cp .env.example .env
+npm test
+```
+
+Run locally without payments:
+
+```bash
+VOUCH_PAYMENT_MODE=free VOUCH_AI_PROVIDER=local npm run dev
+```
+
+Open `http://localhost:3000` for the local UI.
+
+## Environment
+
+Production defaults to paid mode and requires payment and AI credentials.
+
+```bash
+PORT=3000
+VOUCH_PUBLIC_BASE_URL=https://your-domain.example
+
 VOUCH_PAYMENT_MODE=paid
 VOUCH_PRICE_USD=0.20
+VOUCH_ENABLE_URL_FETCH=true
+
 PAY_TO_ADDRESS=0xYourXLayerReceivingWallet
 OKX_API_KEY=your_okx_developer_api_key
 OKX_SECRET_KEY=your_okx_developer_secret_key
 OKX_PASSPHRASE=your_okx_developer_passphrase
 OKX_BASE_URL=https://web3.okx.com
-VOUCH_PUBLIC_BASE_URL=https://YOUR_DEPLOYED_DOMAIN
+VOUCH_SYNC_SETTLE=true
+
 VOUCH_AI_PROVIDER=openai
 VOUCH_OPENAI_MODEL=gpt-5
-OPENAI_API_KEY=your_openai_api_key
+OPENAI_API_KEY=sk-your_openai_api_key
+VOUCH_OPENAI_TIMEOUT_MS=45000
+VOUCH_OPENAI_MAX_OUTPUT_TOKENS=7000
 ```
 
-For local development only:
+Use `VOUCH_PAYMENT_MODE=free` only for local development and tests. Use `VOUCH_AI_PROVIDER=local` when you want deterministic local packet generation without an AI API key.
 
-```bash
-VOUCH_PAYMENT_MODE=free npm run dev
-```
+## Payment Verification
 
-## What Makes It Real
-
-- The paid endpoint is protected before generation, so unpaid calls receive `HTTP 402`.
-- OpenAI drafts the career packet only after the payment middleware grants the request.
-- Vouch preserves trusted local fit scores, job coverage, and gap evidence so the model cannot turn missing proof into claimed experience.
-- If OpenAI is temporarily unavailable, the local benchmark packet is returned with `generation.provider=local_fallback` instead of failing silently.
-
-## Local Verification
-
-```bash
-npm test
-VOUCH_PAYMENT_MODE=free npm run dev
-```
-
-Open `http://localhost:3000` when using local free mode.
-
-## OKX CLI Routing
-
-Some networks can time out when connecting directly to `https://web3.okx.com`. For repeatable OKX verification from this repo, run OKX commands through the local route wrapper:
+The repository includes a small wrapper for environments where direct connections to `https://web3.okx.com` time out:
 
 ```bash
 npm run okx:chains
 npm run okx:agents
-npm run okx:run -- onchainos payment quote https://vouch-production-852d.up.railway.app/api/v1/vouch/application-packet --method POST
+npm run okx:run -- onchainos payment quote https://your-domain.example/api/v1/vouch/application-packet --method POST
 ```
 
-The wrapper only reroutes `web3.okx.com:443` through the known working OKX edge while preserving the real `web3.okx.com` TLS host. It does not sign payments or bypass any OKX confirmation step.
+The wrapper only routes `web3.okx.com:443` through a working OKX edge while preserving the real `web3.okx.com` TLS host. It does not sign payments, skip payment challenges, or bypass OKX confirmations.
 
-## Real Job Inputs
+## Development
 
-Each target job can include either a pasted `description` or a public `url`. If the description is missing and `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches the job page, extracts readable text, and benchmarks against that text. Candidate data is still processed in memory and is not persisted by default.
+```bash
+npm test
+npm run dev
+```
 
-## Submission Assets
+Useful files:
+
+- `src/server.js` - HTTP server, routes, x402 middleware, and A2MCP helper
+- `src/lib/config.js` - runtime configuration and production boot checks
+- `src/lib/packet.js` - packet assembly
+- `src/lib/benchmark.js` - role matching and evidence scoring
+- `src/lib/aiPacket.js` - AI generation and local fallback
+- `src/lib/enrichment.js` - request preparation and optional job URL fetching
+- `scripts/okx-run.mjs` - OKX CLI routing helper
+
+## Data Handling
+
+Vouch processes request data in memory and does not persist candidate resumes or job descriptions by default. If you add persistence, logging, analytics, or third-party storage, document the data flow and avoid storing raw candidate documents unless the user explicitly opts in.
+
+## Additional Docs
 
 - [ASP contract](docs/asp-contract.md)
 - [OKX.AI listing draft](docs/okx-ai-listing.md)
-- [Demo script](docs/demo-script.md)
 - [Production checklist](docs/production-checklist.md)
-
-## Hackathon Demo Story
-
-1. Paste a generic resume.
-2. Paste up to three target job descriptions or public job URLs.
-3. Show that the production endpoint is x402 protected.
-4. Generate the paid packet after payment.
-5. Show the before score, after score, recruiter concerns, evidence-backed resume bullets, interview prep, and proof-gap plan.
