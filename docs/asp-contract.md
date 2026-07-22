@@ -51,7 +51,7 @@ This endpoint is x402-protected in production. Without a valid payment signature
 ```json
 {
   "service": "Vouch",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "packet": {
     "fitScoreBefore": 54,
     "fitScoreAfter": 83,

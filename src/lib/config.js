@@ -48,7 +48,7 @@ export function getPublicPaymentConfig(config) {
     payToAddress: config.payment.isPaid ? config.payment.payToAddress : "",
     settlement: "OKX x402 exact payment on X Layer",
     protectedRoutes: config.payment.isPaid
-      ? ["POST /api/v1/vouch/application-packet"]
+      ? ["GET /api/v1/vouch/application-packet", "POST /api/v1/vouch/application-packet"]
       : []
   };
 }

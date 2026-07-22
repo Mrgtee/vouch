@@ -41,8 +41,11 @@ POST /api/a2mcp
 ### Paid Endpoint
 
 ```txt
+GET  /api/v1/vouch/application-packet
 POST /api/v1/vouch/application-packet
 ```
+
+The `GET` method is protected so OKX.AI marketplace validators receive a standard x402 challenge on the registered URL. Actual packet generation uses `POST` with JSON input.
 
 Example request body:
 

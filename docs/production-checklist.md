@@ -28,12 +28,13 @@ Before registering the service:
 npm test
 curl -i https://YOUR_DEPLOYED_DOMAIN/health
 curl -i https://YOUR_DEPLOYED_DOMAIN/api/v1/vouch/manifest
+curl -i https://YOUR_DEPLOYED_DOMAIN/api/v1/vouch/application-packet
 curl -i -X POST https://YOUR_DEPLOYED_DOMAIN/api/v1/vouch/application-packet \
   -H 'content-type: application/json' \
   --data '{"resumeText":"...","targetJobs":[{"url":"https://example.com/job"}]}'
 ```
 
-Expected paid endpoint result without payment:
+Expected paid endpoint result without payment for both the registered `GET` check route and the business `POST` route:
 
 ```txt
 HTTP 402

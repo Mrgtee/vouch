@@ -15,6 +15,7 @@ import { ValidationError } from "./lib/validation.js";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PUBLIC_DIR = join(ROOT, "public");
 const JSON_LIMIT = "1mb";
+const APPLICATION_PACKET_ROUTE = "/api/v1/vouch/application-packet";
 
 const config = getRuntimeConfig();
 const app = express();
@@ -29,7 +30,7 @@ app.get("/health", (_request, response) => {
   response.json({
     ok: true,
     service: "Vouch",
-    version: "0.3.0",
+    version: "0.3.1",
     paymentMode: config.payment.mode,
     ai: getPublicAiConfig(config)
   });
@@ -43,7 +44,15 @@ if (config.payment.isPaid) {
   app.use(createPaymentMiddleware());
 }
 
-app.post("/api/v1/vouch/application-packet", async (request, response, next) => {
+app.get(APPLICATION_PACKET_ROUTE, (_request, response) => {
+  response.status(405).json({
+    error: "method_not_allowed",
+    message: "Use POST with a JSON body containing resumeText and targetJobs to generate a Vouch application packet.",
+    inputSchema: getApplicationPacketInputSchema()
+  });
+});
+
+app.post(APPLICATION_PACKET_ROUTE, async (request, response, next) => {
   try {
     const payload = await prepareApplicationPacketPayload(request.body, {
       fetchJobUrls: config.features.fetchJobUrls
@@ -113,7 +122,19 @@ function createPaymentMiddleware() {
 
   return paymentMiddleware(
     {
-      "POST /api/v1/vouch/application-packet": {
+      ["GET " + APPLICATION_PACKET_ROUTE]: {
+        accepts: {
+          scheme: "exact",
+          network: config.payment.network,
+          payTo: config.payment.payToAddress,
+          price: config.payment.price,
+          maxTimeoutSeconds: 300
+        },
+        description:
+          "Vouch application packet x402 check route. Use POST with resumeText and targetJobs to generate the paid packet.",
+        mimeType: "application/json"
+      },
+      ["POST " + APPLICATION_PACKET_ROUTE]: {
         accepts: {
           scheme: "exact",
           network: config.payment.network,
@@ -129,7 +150,7 @@ function createPaymentMiddleware() {
     resourceServer,
     {
       appName: "Vouch",
-      currentUrl: config.publicBaseUrl + "/api/v1/vouch/application-packet",
+      currentUrl: config.publicBaseUrl + APPLICATION_PACKET_ROUTE,
       testnet: false
     }
   );
@@ -140,14 +161,14 @@ function buildManifest() {
 
   return {
     name: "Vouch",
-    version: "0.3.0",
+    version: "0.3.1",
     description:
       "Paid OpenAI-powered, evidence-backed job-to-offer workflow for resumes and target roles.",
     publicBaseUrl: config.publicBaseUrl,
     payment,
     ai: getPublicAiConfig(config),
     endpoints: {
-      applicationPacket: config.publicBaseUrl + "/api/v1/vouch/application-packet",
+      applicationPacket: config.publicBaseUrl + APPLICATION_PACKET_ROUTE,
       a2mcp: config.publicBaseUrl + "/api/a2mcp",
       health: config.publicBaseUrl + "/health"
     },
@@ -156,45 +177,52 @@ function buildManifest() {
         name: "vouch_create_application_packet",
         description:
           "Benchmark a resume against one to three jobs and return an ATS resume, recruiter screen, interview prep, salary positioning, and fit-gap plan.",
-        inputSchema: {
-          type: "object",
-          required: ["resumeText", "targetJobs"],
-          properties: {
-            resumeText: {
-              type: "string",
-              description: "Candidate resume, LinkedIn text, or profile notes."
-            },
-            targetJobs: {
-              type: "array",
-              minItems: 1,
-              maxItems: 3,
-              items: {
-                type: "object",
-                properties: {
-                  title: { type: "string" },
-                  company: { type: "string" },
-                  url: { type: "string" },
-                  description: { type: "string", description: "Paste job text, or provide url and Vouch will fetch the page." }
-                }
-              }
-            },
-            candidatePreferences: {
-              type: "object",
-              properties: {
-                location: { type: "string" },
-                salaryGoal: { type: "string" },
-                tone: {
-                  type: "string",
-                  enum: ["confident", "concise", "executive", "warm"]
-                }
-              }
-            }
-          }
-        }
+        inputSchema: getApplicationPacketInputSchema()
       }
     ],
     privacy:
       "Vouch processes request data in memory and does not persist candidate documents by default."
+  };
+}
+
+function getApplicationPacketInputSchema() {
+  return {
+    type: "object",
+    required: ["resumeText", "targetJobs"],
+    properties: {
+      resumeText: {
+        type: "string",
+        description: "Candidate resume, LinkedIn text, or profile notes."
+      },
+      targetJobs: {
+        type: "array",
+        minItems: 1,
+        maxItems: 3,
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            company: { type: "string" },
+            url: { type: "string" },
+            description: {
+              type: "string",
+              description: "Paste job text, or provide url and Vouch will fetch the page."
+            }
+          }
+        }
+      },
+      candidatePreferences: {
+        type: "object",
+        properties: {
+          location: { type: "string" },
+          salaryGoal: { type: "string" },
+          tone: {
+            type: "string",
+            enum: ["confident", "concise", "executive", "warm"]
+          }
+        }
+      }
+    }
   };
 }
 

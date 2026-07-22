@@ -40,7 +40,10 @@ test("accepts paid mode with x402 payment environment", () => {
   assert.equal(publicPayment.mode, "paid");
   assert.equal(publicPayment.network, "eip155:196");
   assert.equal(publicPayment.price, "$0.20");
-  assert.deepEqual(publicPayment.protectedRoutes, ["POST /api/v1/vouch/application-packet"]);
+  assert.deepEqual(publicPayment.protectedRoutes, [
+    "GET /api/v1/vouch/application-packet",
+    "POST /api/v1/vouch/application-packet"
+  ]);
 });
 
 
