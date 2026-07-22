@@ -16,6 +16,8 @@ const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const PUBLIC_DIR = join(ROOT, "public");
 const JSON_LIMIT = "1mb";
 const APPLICATION_PACKET_ROUTE = "/api/v1/vouch/application-packet";
+const X_LAYER_USDT0_ASSET = "0x779ded0c9e1022225f8e0630b35a9b54be713736";
+const X_LAYER_USDT0_DECIMALS = 6;
 
 const config = getRuntimeConfig();
 const app = express();
@@ -177,7 +179,7 @@ function createApplicationPacketRouteConfig(description) {
       scheme: "exact",
       network: config.payment.network,
       payTo: config.payment.payToAddress,
-      price: config.payment.price,
+      price: getPaymentAssetAmount(),
       maxTimeoutSeconds: 300
     },
     description,
@@ -197,6 +199,26 @@ function createApplicationPacketRouteConfig(description) {
       }
     }
   };
+}
+
+function getPaymentAssetAmount() {
+  return {
+    amount: parseUsdPriceToAtomic(config.payment.price),
+    asset: X_LAYER_USDT0_ASSET,
+    extra: {
+      name: "USD₮0",
+      version: "1",
+      symbol: "USDT",
+      decimals: X_LAYER_USDT0_DECIMALS
+    }
+  };
+}
+
+function parseUsdPriceToAtomic(price) {
+  const [wholePart, fractionPart = ""] = String(price).replace(/^\$/, "").split(".");
+  const whole = BigInt(wholePart || "0");
+  const fraction = BigInt(fractionPart.padEnd(X_LAYER_USDT0_DECIMALS, "0").slice(0, X_LAYER_USDT0_DECIMALS));
+  return (whole * 10n ** BigInt(X_LAYER_USDT0_DECIMALS) + fraction).toString();
 }
 
 function buildManifest() {
