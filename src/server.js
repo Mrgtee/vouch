@@ -11,6 +11,11 @@ import { prepareApplicationPacketPayload } from "./lib/enrichment.js";
 import { createApplicationPacketWithAi } from "./lib/aiPacket.js";
 import { getPublicAiConfig, getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
 import { formatApplicationPacketResult } from "./lib/deliverable.js";
+import {
+  getApplicationPacketInputFields,
+  getApplicationPacketInputRequiredResponse,
+  getApplicationPacketInputSchema
+} from "./lib/schema.js";
 import { ValidationError, normalizeApplicationPacketRequestPayload } from "./lib/validation.js";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
@@ -131,17 +136,7 @@ function hasApplicationPacketInput(payload) {
 }
 
 function getInputRequiredResponse() {
-  return {
-    error: "input_required",
-    message: "Provide resumeText and targetJobs to generate a Vouch application packet.",
-    required: ["resumeText", "targetJobs"],
-    inputSchema: getApplicationPacketInputSchema(),
-    acceptedShapes: [
-      { method: "POST", body: { resumeText: "...", targetJobs: [{ title: "...", company: "...", url: "...", description: "..." }] } },
-      { method: "GET", query: { resumeText: "...", targetJobs: "JSON array string" } },
-      { method: "GET", query: { serviceParams: "JSON object containing resumeText and targetJobs" } }
-    ]
-  };
+  return getApplicationPacketInputRequiredResponse();
 }
 
 function createPaymentMiddleware() {
@@ -191,6 +186,9 @@ function createApplicationPacketRouteConfig(description) {
       body: getInputRequiredResponse()
     }),
     extensions: {
+      inputRequired: true,
+      requiredArgs: ["resumeText", "targetJobs"],
+      fields: getApplicationPacketInputFields(),
       outputSchema: {
         input: {
           type: "http",
@@ -249,47 +247,6 @@ function buildManifest() {
     ],
     privacy:
       "Vouch processes request data in memory and does not persist candidate documents by default."
-  };
-}
-
-function getApplicationPacketInputSchema() {
-  return {
-    type: "object",
-    required: ["resumeText", "targetJobs"],
-    properties: {
-      resumeText: {
-        type: "string",
-        description: "Candidate resume, LinkedIn text, or profile notes."
-      },
-      targetJobs: {
-        type: "array",
-        minItems: 1,
-        maxItems: 3,
-        items: {
-          type: "object",
-          properties: {
-            title: { type: "string" },
-            company: { type: "string" },
-            url: { type: "string" },
-            description: {
-              type: "string",
-              description: "Paste job text, or provide url and Vouch will fetch the page."
-            }
-          }
-        }
-      },
-      candidatePreferences: {
-        type: "object",
-        properties: {
-          location: { type: "string" },
-          salaryGoal: { type: "string" },
-          tone: {
-            type: "string",
-            enum: ["confident", "concise", "executive", "warm"]
-          }
-        }
-      }
-    }
   };
 }
 
