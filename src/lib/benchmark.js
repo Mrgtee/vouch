@@ -172,7 +172,9 @@ export function rankResumeEvidenceLines(resumeText) {
 
 export function inferCandidateName(resumeText) {
   const firstLine = splitLines(resumeText)[0] ?? "Candidate";
-  const cleaned = firstLine.replace(/[^a-zA-Z .'-]/g, "").trim();
+  const withoutEmail = firstLine.replace(/\b\S+@\S+\b/g, " ");
+  const primarySegment = withoutEmail.split(/[|,;•]/)[0] ?? withoutEmail;
+  const cleaned = primarySegment.replace(/[^a-zA-Z .'-]/g, " ").replace(/\s+/g, " ").trim();
 
   if (!cleaned || cleaned.length > 60 || cleaned.split(/\s+/).length > 5) {
     return "Candidate";

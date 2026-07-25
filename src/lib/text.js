@@ -93,6 +93,7 @@ const STOP_WORDS = new Set([
   "under",
   "until",
   "up",
+  "using",
   "very",
   "was",
   "we",
@@ -115,17 +116,27 @@ const IMPORTANT_PHRASES = [
   "account management",
   "api integration",
   "business intelligence",
+  "api contracts",
+  "agentic automation",
+  "backend systems",
+  "ci/cd",
   "cross functional",
   "customer success",
   "data analysis",
   "data engineering",
   "data visualization",
   "go to market",
+  "generative ai",
+  "github actions",
   "growth marketing",
+  "llm apis",
   "machine learning",
+  "microservices architecture",
+  "openai apis",
   "product analytics",
   "product management",
   "project management",
+  "react frontends",
   "revenue operations",
   "stakeholder management",
   "user research"
@@ -134,16 +145,32 @@ const IMPORTANT_PHRASES = [
 const KEYWORD_VARIANTS = new Map([
   ["a/b testing", ["ab testing", "experimentation", "experiment", "experiments"]],
   ["ab testing", ["a/b testing", "experimentation", "experiment", "experiments"]],
+  ["agentic", ["agentic automation", "agent workflow", "agent workflows", "workflow automation"]],
+  ["agentic automation", ["agentic", "agent workflow", "agent workflows", "workflow automation"]],
+  ["api", ["apis", "api contracts", "llm apis", "openai apis", "rest api"]],
+  ["api contracts", ["api", "apis", "llm apis", "openai apis", "service contracts"]],
+  ["apis", ["api", "api contracts", "llm apis", "openai apis", "rest apis"]],
+  ["automation", ["automated", "automatically", "workflow automation", "github actions", "ci/cd"]],
+  ["backend systems", ["backend", "server-side", "microservices", "microservices architecture"]],
+  ["ci/cd", ["ci cd", "github actions", "pipelines", "deployment pipelines", "deploy code automatically"]],
   ["cross functional", ["cross-functional", "stakeholder", "stakeholder management"]],
   ["customer insights", ["customer insight", "user insights", "user research", "customer research"]],
   ["dashboard", ["dashboards", "dashboarding", "business intelligence", "bi"]],
   ["dashboards", ["dashboard", "dashboarding", "business intelligence", "bi"]],
   ["dashboarding", ["dashboard", "dashboards", "business intelligence", "bi"]],
+  ["distributed environments", ["distributed systems", "microservices", "microservices architecture", "multi-service"]],
   ["diagnostics", ["diagnostic", "root cause analysis", "funnel analysis", "analysis"]],
   ["executive", ["leadership", "stakeholder", "stakeholder reporting", "executive-ready"]],
   ["experimentation", ["experiment", "experiments", "a/b testing", "ab testing"]],
+  ["generative ai", ["genai", "gen ai", "llm", "llms", "openai", "openai apis"]],
+  ["github actions", ["ci/cd", "deployment pipelines", "pipelines"]],
   ["impact", ["improved", "improvement", "improvements", "increased", "reduced", "revenue", "retention", "conversion"]],
+  ["llm", ["llms", "genai", "gen ai", "generative ai", "openai", "openai apis"]],
+  ["llm apis", ["llm", "llms", "openai", "openai apis", "api", "apis"]],
+  ["microservices architecture", ["microservices", "distributed systems", "service architecture"]],
+  ["openai apis", ["openai", "llm apis", "llm", "apis", "api"]],
   ["product analytics", ["product analyst", "product analysis", "product metrics", "analytics"]],
+  ["react frontends", ["react", "react.js", "frontend", "frontends"]],
   ["retention analysis", ["retention", "cohort analysis", "churn analysis", "renewal analysis"]],
   ["revenue reporting", ["revenue", "arr reporting", "sales reporting", "commercial reporting"]],
   ["senior", ["lead", "led", "ownership", "owned", "mentored", "manager", "principal"]],
@@ -263,6 +290,7 @@ function keywordVariants(keyword) {
   } else {
     variants.add(singularize(needle));
     variants.add(looseStem(needle));
+    variants.add(pluralize(needle));
   }
 
   for (const [canonical, mapped] of KEYWORD_VARIANTS.entries()) {
@@ -301,6 +329,18 @@ function looseStem(token) {
   }
 
   return singularize(stem);
+}
+
+function pluralize(token) {
+  if (token.endsWith("s")) {
+    return token;
+  }
+
+  if (token.endsWith("y") && token.length > 3) {
+    return token.slice(0, -1) + "ies";
+  }
+
+  return token + "s";
 }
 
 function singularize(token) {

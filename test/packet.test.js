@@ -56,3 +56,49 @@ test("keeps missing requirements as gaps instead of claiming them", () => {
   assert.equal(missingRevenue?.status, "missing");
   assert.equal(missingRevenue?.evidence.length, 0);
 });
+
+
+const alexResumeText = `
+Alex Mercer | Senior Software Engineer | alex.mercer@email.com
+Summary: I have over 6 years of experience building web apps. I focus on backend systems but do full-stack work. I like working with Node.js, Python, React, and AWS. I have led teams and want to work on AI/LLM integrations now.
+Experience:
+Lead Engineer at CloudScale Tech (2023 - Present): Managed a team of 4 developers. We moved our platform to a microservices architecture on AWS. It made the site faster and reduced our server bill by 25%. I also started adding LLM features to our customer support chatbot using OpenAI APIs.
+Software Engineer at DevLaunch Corp (2020 - 2023): Built web features using React and Node.js. Fixed legacy bugs which reduced user drop-offs. Set up CI/CD pipelines using GitHub Actions to deploy code automatically.
+Skills: JavaScript, TypeScript, Python, Node.js, React, AWS, Docker, Git, CI/CD, SQL, Prompt Engineering.
+`;
+
+const visaJobDescription = `
+Design and build GenAI-powered features, workflows, and agentic automation using LLM APIs. Manage complex, multi-service dependencies across distributed environments. Contribute to React frontends and collaborate on API contracts. Configure CI/CD pipelines and drive engineering best practices within an Agile delivery model.
+`;
+
+test("creates a premium local packet for the Alex/Visa paid flow", () => {
+  const result = createApplicationPacket({
+    resumeText: alexResumeText,
+    targetJobs: [
+      {
+        title: "Senior Software Engineer",
+        company: "Visa",
+        url: "https://visa.example/job",
+        description: visaJobDescription
+      }
+    ]
+  });
+
+  const packet = result.packet;
+  const requirements = packet.gapBenchmark.map((gap) => gap.requirement);
+  const joinedQuestions = packet.interviewPrep.map((item) => item.question).join("\n");
+
+  assert.match(packet.atsResume, /^Alex Mercer\nSenior Software Engineer/m);
+  assert.doesNotMatch(packet.atsResume, /\bCandidate\b\nSenior Software Engineer Candidate/);
+  assert.doesNotMatch(packet.atsResume, /used engineer|reinforcing engineer|Improved the site faster|our server bill/i);
+  assert.match(packet.atsResume, /CI\/CD automation/);
+  assert.match(packet.atsResume, /LLM API integration/);
+  assert.match(packet.atsResume, /React frontends/);
+  assert.ok(packet.beforeAfterBulletImprovements.length >= 2);
+  assert.ok(packet.beforeAfterBulletImprovements.every((item) => item.after.length > item.before.length));
+  assert.equal(requirements.includes("api") && requirements.includes("apis"), false);
+  assert.ok(requirements.includes("api contracts"));
+  assert.doesNotMatch(joinedQuestions, /used engineer|used engineering/);
+  assert.match(packet.applicationStrategy.recruiterMessage, /Visa Senior Software Engineer/);
+  assert.match(packet.salaryPositioning.negotiationScript, /CI\/CD automation|LLM API integration|React frontends/);
+});
