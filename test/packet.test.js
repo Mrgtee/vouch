@@ -203,3 +203,59 @@ test("polishes customer operations labels for the Stripe paid flow", () => {
   assert.doesNotMatch(packet.atsResume, /Proof to add before submitting: .*(platform|ai-powered|clear|define|global)/i);
   assert.equal(packet.portfolioProjects[0]?.title, "Offer-readiness evidence sprint");
 });
+
+
+const danielResumeText = `
+Daniel Hart | Senior Risk Analytics Manager | daniel.hart@example.com
+Summary: Financial risk and analytics leader with 9 years of experience across investment banking, market risk, credit risk, model governance, stress testing, and regulatory reporting. Experienced in Python, SQL, Tableau, Snowflake, data controls, model validation, executive risk packs, and cross-functional delivery with compliance, trading, finance, and technology teams.
+Experience:
+Senior Risk Analytics Manager at Meridian Capital Markets (2022 - Present): Led a 7-person analytics team supporting market and counterparty credit risk for rates and FX desks. Built Python and SQL monitoring that reduced manual VaR exception review time by 36% and improved daily breach escalation accuracy. Partnered with model risk, compliance, and engineering to document controls for AI-assisted anomaly detection in trade surveillance workflows. Presented weekly risk insights to directors and front-office stakeholders.
+Risk Analytics Lead at Atlantic Trust Bank (2019 - 2022): Delivered CCAR and stress-testing analytics across wholesale lending portfolios. Improved data reconciliation controls, built Tableau dashboards for credit concentration exposure, and coordinated remediation plans with audit, finance, and technology teams. Reduced month-end reporting defects by 28%.
+Quantitative Risk Analyst at Northbridge Securities (2016 - 2019): Built SQL pipelines for PnL attribution, liquidity risk reporting, and scenario analysis. Supported model validation evidence packs and documented assumptions for regulators and internal risk committees.
+Skills: Market risk, credit risk, model risk governance, stress testing, CCAR, Basel III, trade surveillance, Python, SQL, Snowflake, Tableau, controls documentation, stakeholder management, executive reporting, regulatory audit readiness.
+`;
+
+const goldmanRiskJobDescription = `
+Top financial-sector role for a Vice President, AI Risk Strategy and Controls. Own risk governance for AI-enabled trading, credit, and surveillance workflows. Design controls for model monitoring, data quality, explainability, operational risk, and regulatory audit readiness. Partner with trading desks, compliance, model risk, engineering, and data science teams. Build executive reporting, lead cross-functional control remediation, support stress testing, and communicate risk posture to senior leaders and regulators. Requires financial risk domain expertise, Python or SQL fluency, model governance, control design, stakeholder management, and experience delivering audit-ready documentation in a regulated environment.
+`;
+
+test("polishes finance and AI risk labels for top financial-sector paid flow", () => {
+  const result = createApplicationPacket({
+    resumeText: danielResumeText,
+    targetJobs: [
+      {
+        title: "Vice President, AI Risk Strategy and Controls",
+        company: "Goldman Sachs",
+        description: goldmanRiskJobDescription
+      }
+    ],
+    candidatePreferences: {
+      location: "New York or hybrid",
+      salaryGoal: "260000 USD total compensation",
+      tone: "executive"
+    }
+  });
+
+  const packet = result.packet;
+  const labels = packet.gapBenchmark.map((gap) => gap.label || gap.requirement);
+  const portfolioTitles = packet.portfolioProjects.map((item) => item.title);
+  const generated = [
+    packet.recruiterSummary,
+    packet.atsResume.split("TARGET ROLE ALIGNMENT")[1] || "",
+    ...packet.interviewPrep.map((item) => item.question),
+    ...packet.portfolioProjects.map((item) => item.title + " " + item.objective),
+    ...labels
+  ].join("\n");
+
+  assert.match(packet.atsResume, /^Daniel Hart\nVice President, AI Risk Strategy and Controls/m);
+  assert.ok(packet.fitScoreAfter >= packet.fitScoreBefore);
+  assert.ok(labels.includes("risk control design"));
+  assert.ok(labels.includes("data quality controls"));
+  assert.ok(labels.includes("regulatory audit readiness"));
+  assert.ok(labels.includes("AI risk controls"));
+  assert.ok(labels.includes("AI explainability controls"));
+  assert.ok(labels.includes("data science collaboration"));
+  assert.ok(labels.every((label) => !/^(domain|environment|expertise|financial-sector|fluency|posture|regulated|requires|science|support|top|vice|president)$/i.test(label)));
+  assert.doesNotMatch(generated, /President proof sprint|Vice proof sprint|Ai-enabled proof sprint|Audit-ready proof sprint|Science proof sprint|Support proof sprint|Top proof sprint/i);
+  assert.deepEqual(portfolioTitles, ["AI Explainability Controls proof sprint", "Data Science Collaboration proof sprint"]);
+});
