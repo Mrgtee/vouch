@@ -259,3 +259,59 @@ test("polishes finance and AI risk labels for top financial-sector paid flow", (
   assert.doesNotMatch(generated, /President proof sprint|Vice proof sprint|Ai-enabled proof sprint|Audit-ready proof sprint|Science proof sprint|Support proof sprint|Top proof sprint/i);
   assert.deepEqual(portfolioTitles, ["AI Explainability Controls proof sprint", "Data Science Collaboration proof sprint"]);
 });
+
+
+const mayaResumeText = `
+Maya Patel | Senior AI Governance and Risk Controls Lead | maya.patel@example.com
+Summary: Financial-services risk and governance leader with 10 years of experience across asset management, operational risk, model governance, AI controls, regulatory audit readiness, and executive risk reporting. Experienced with Python, SQL, Snowflake, Tableau, model inventory controls, data lineage, control testing, third-party risk, and cross-functional delivery with compliance, legal, data science, engineering, and investment operations teams.
+Experience:
+Senior AI Governance and Risk Controls Lead at Sterling Asset Management (2022 - Present): Led governance for AI-enabled portfolio operations and client-service analytics across equities and fixed income. Designed model monitoring controls, data quality checks, and audit-ready documentation for 18 AI and analytics workflows. Reduced quarterly control exceptions by 34% by building SQL-based evidence collection and automated ownership attestations. Partnered with compliance, data science, legal, and engineering to prepare regulatory response packs and executive risk committee updates.
+Operational Risk Analytics Manager at CrownBridge Investments (2018 - 2022): Built Tableau and SQL dashboards for operational loss events, vendor risk, and trade-break remediation. Improved issue closure time by 29% through control taxonomy cleanup, escalation playbooks, and weekly reporting to senior stakeholders. Supported SOC, SOX, and regulatory exam preparation for investment operations.
+Risk Data Analyst at Harborline Bank (2015 - 2018): Built Python scripts for reconciliation testing, liquidity risk reporting, and data lineage validation. Documented control gaps, mapped remediation owners, and supported internal audit evidence requests.
+Skills: AI risk controls, model risk governance, operational risk, regulatory audit readiness, data quality controls, Python, SQL, Snowflake, Tableau, investment operations, asset management, stakeholder management, executive reporting, control testing, data lineage, third-party risk.
+`;
+
+const blackRockAiRiskJobDescription = `
+Top financial-sector leadership role for a Director, AI Risk Governance and Controls. Own governance for AI-enabled investment, client-service, and risk workflows. Design model monitoring, data quality, explainability, third-party risk, operational risk, and regulatory audit controls. Partner with investment teams, compliance, legal, data science, engineering, and operations. Build executive reporting, maintain model inventory evidence, support regulatory exams, and lead control remediation across global asset-management workflows. Requires financial risk expertise, Python or SQL fluency, model governance, AI risk controls, stakeholder management, audit-ready documentation, and ability to communicate risk posture to senior leaders.
+`;
+
+test("polishes BlackRock AI risk governance paid-flow deliverable labels", () => {
+  const result = createApplicationPacket({
+    resumeText: mayaResumeText,
+    targetJobs: [
+      {
+        title: "Director, AI Risk Governance and Controls",
+        company: "BlackRock",
+        description: blackRockAiRiskJobDescription
+      }
+    ],
+    candidatePreferences: {
+      location: "New York, London, or hybrid",
+      salaryGoal: "300000 USD total compensation",
+      tone: "executive"
+    }
+  });
+
+  const packet = result.packet;
+  const labels = packet.gapBenchmark.map((gap) => gap.label || gap.requirement);
+  const portfolioTitles = packet.portfolioProjects.map((item) => item.title);
+  const generated = [
+    packet.recruiterSummary,
+    packet.atsResume.split("TARGET ROLE ALIGNMENT")[1] || "",
+    ...packet.interviewPrep.map((item) => item.question),
+    ...packet.portfolioProjects.map((item) => item.title + " " + item.objective),
+    ...labels
+  ].join("\n");
+
+  assert.match(packet.atsResume, /^Maya Patel\nDirector, AI Risk Governance and Controls/m);
+  assert.ok(packet.fitScoreAfter >= packet.fitScoreBefore);
+  assert.ok(labels.includes("AI risk controls"));
+  assert.ok(labels.includes("data quality controls"));
+  assert.ok(labels.includes("financial risk analytics"));
+  assert.ok(labels.includes("investment operations"));
+  assert.ok(labels.includes("asset management"));
+  assert.ok(labels.includes("client-service analytics"));
+  assert.ok(labels.every((label) => !/^(director|ability|financial|maintain|asset-management)$/i.test(label)));
+  assert.doesNotMatch(generated, /Director proof sprint|Ability proof sprint|Financial proof sprint|Maintain proof sprint|Asset-management proof sprint/i);
+  assert.deepEqual(portfolioTitles, ["Risk Strategy proof sprint", "AI Explainability Controls proof sprint"]);
+});
