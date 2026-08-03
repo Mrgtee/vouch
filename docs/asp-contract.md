@@ -23,7 +23,7 @@ This endpoint is x402-protected in production. Without a valid payment signature
 - Price: configured by `VOUCH_PRICE_USD`, default `$0.20`
 - Receiving wallet: configured by `PAY_TO_ADDRESS`
 - Facilitator: OKX x402 SDK via `OKX_API_KEY`, `OKX_SECRET_KEY`, and `OKX_PASSPHRASE`
-- AI provider: OpenAI Responses API via `OPENAI_API_KEY` and `VOUCH_OPENAI_MODEL`
+- AI provider: OpenAI Responses API via `OPENAI_API_KEY` and `VOUCH_OPENAI_MODEL` in paid production. Local AI requires explicit emergency override.
 
 ## Request
 
@@ -57,18 +57,23 @@ This endpoint is x402-protected in production. Without a valid payment signature
   "deliverable": {
     "title": "Vouch Resume-to-Offer Packet for ExampleCo Senior Product Analyst",
     "summary": "Fit score improved from 54 to 83...",
-    "format": "markdown+json",
+    "format": "markdown+json+pdf+docx",
     "markdown": "# Vouch Resume-to-Offer Packet...",
+    "files": [
+      { "name": "pdf", "mediaType": "application/pdf", "encoding": "base64", "data": "..." },
+      { "name": "docx", "mediaType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "encoding": "base64", "data": "..." }
+    ],
     "packet": {}
   },
   "content": [
     { "type": "text", "text": "# Vouch Resume-to-Offer Packet..." },
-    { "type": "json", "json": { "packet": {} } }
+    { "type": "json", "json": { "packet": {}, "files": [] } }
   ],
   "structuredContent": {
     "service": "Vouch",
     "version": "0.3.3",
-    "packet": {}
+    "packet": {},
+    "files": []
   },
   "packet": {
     "fitScoreBefore": 54,
@@ -99,4 +104,5 @@ This endpoint is x402-protected in production. Without a valid payment signature
 - Output separates proven claims from suggested gaps.
 - Scoring is explainable and anchored by the local benchmark engine even when OpenAI drafts the packet.
 - The endpoint is paid in production and cannot be bypassed through the metadata helper.
+- Paid output includes downloadable PDF and DOCX artifacts in the response envelope.
 - No sensitive candidate data is stored by default.

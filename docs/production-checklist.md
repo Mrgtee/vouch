@@ -17,6 +17,10 @@ Do not commit these values.
 - `VOUCH_PUBLIC_BASE_URL=https://YOUR_DEPLOYED_DOMAIN`
 - `OKX_BASE_URL=https://web3.okx.com`
 - `VOUCH_ENABLE_URL_FETCH=true`
+- `VOUCH_TRUST_PROXY=1` for Railway-style single proxy hop, or the exact hop/subnet value for your host
+- `VOUCH_ALLOWED_ORIGINS=https://YOUR_DEPLOYED_DOMAIN,https://www.okx.com,https://web3.okx.com,https://app.okx.com`
+- `VOUCH_FRAME_ANCESTORS=self,https://okx.com,https://*.okx.com`
+- `VOUCH_RATE_LIMIT_ENABLED=true`
 - `VOUCH_AI_PROVIDER=openai`
 - `VOUCH_OPENAI_MODEL=gpt-5`
 
@@ -51,8 +55,9 @@ PAYMENT-RESPONSE: <settlement proof>
 ## Hard Rules
 
 - Do not run production with `VOUCH_PAYMENT_MODE=free`.
-- Do not run paid production with `VOUCH_AI_PROVIDER=local` unless explicitly doing an emergency fallback test.
+- Do not run paid production with `VOUCH_AI_PROVIDER=local` unless `VOUCH_ALLOW_LOCAL_AI_IN_PAID=true` is explicitly set for a short emergency fallback window.
 - Do not use a placeholder `PAY_TO_ADDRESS`.
 - Do not register the ASP until the deployed endpoint returns `HTTP 402` without payment.
 - Do not claim PDF/DOCX upload support until parser support is implemented.
 - Do not store resumes or job inputs unless a privacy policy and deletion flow exist.
+- Do not widen CORS beyond the deployed app and trusted OKX browser origins unless a concrete integration needs it.

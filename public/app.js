@@ -169,9 +169,9 @@ function renderPacket() {
     return;
   }
 
-  elements.beforeScore.textContent = packet.fitScoreBefore;
-  elements.afterScore.textContent = packet.fitScoreAfter;
-  elements.scoreFill.style.width = `${Math.max(packet.fitScoreBefore, packet.fitScoreAfter)}%`;
+  elements.beforeScore.textContent = formatScore(packet.fitScoreBefore);
+  elements.afterScore.textContent = formatScore(packet.fitScoreAfter);
+  elements.scoreFill.style.width = Math.max(packet.fitScoreBefore, packet.fitScoreAfter) + "%";
 
   const renderers = {
     overview: renderOverview,
@@ -180,104 +180,163 @@ function renderPacket() {
     json: renderJson
   };
 
-  elements.resultPanel.innerHTML = renderers[state.activeTab](packet);
+  elements.resultPanel.replaceChildren(renderers[state.activeTab](packet));
 }
 
 function renderOverview(packet) {
-  const strongGaps = packet.gapBenchmark
+  const strongGaps = (packet.gapBenchmark ?? [])
     .filter((gap) => gap.status === "missing")
     .slice(0, 6);
-  const matched = packet.jobBreakdown[0]?.matchedKeywords ?? [];
+  const matched = packet.jobBreakdown?.[0]?.matchedKeywords ?? [];
 
-  return `
-    <div class="section-stack">
-      <div class="metric-grid">
-        <div class="metric"><span>Before fit</span><strong>${packet.fitScoreBefore}</strong></div>
-        <div class="metric"><span>After fit</span><strong>${packet.fitScoreAfter}</strong></div>
-        <div class="metric"><span>Decision</span><strong>${escapeHtml(packet.mockRecruiterScreen.decision)}</strong></div>
-      </div>
-      <article class="result-card">
-        <h3>Recruiter summary</h3>
-        <p>${escapeHtml(packet.recruiterSummary).replaceAll("\n", "<br />")}</p>
-      </article>
-      <article class="result-card">
-        <h3>Visible strengths</h3>
-        <div class="chip-row">${matched.map((item) => `<span class="chip">${escapeHtml(item)}</span>`).join("")}</div>
-      </article>
-      <article class="result-card">
-        <h3>Gaps to close</h3>
-        <ul>${strongGaps.map((gap) => `<li>${escapeHtml(gap.label || gap.requirement)}: ${escapeHtml(gap.recommendation)}</li>`).join("")}</ul>
-      </article>
-    </div>
-  `;
+  return createStack(
+    createElement("div", { className: "metric-grid" }, [
+      createMetric("Before fit", packet.fitScoreBefore),
+      createMetric("After fit", packet.fitScoreAfter),
+      createMetric("Decision", packet.mockRecruiterScreen?.decision || "Not specified")
+    ]),
+    createCard("Recruiter summary", [createParagraphWithBreaks(packet.recruiterSummary)]),
+    createCard("Visible strengths", [createChipRow(matched)]),
+    createCard("Gaps to close", [
+      createList(strongGaps, (gap) =>
+        (gap.label || gap.requirement || "Requirement") + ": " + (gap.recommendation || "Add verified proof.")
+      )
+    ])
+  );
 }
 
 function renderResume(packet) {
-  return `
-    <div class="section-stack">
-      <article class="result-card">
-        <h3>ATS resume</h3>
-        <pre>${escapeHtml(packet.atsResume)}</pre>
-      </article>
-    </div>
-  `;
+  return createStack(
+    createCard("ATS resume", [createElement("pre", { text: packet.atsResume || "No ATS resume returned." })])
+  );
 }
 
 function renderInterview(packet) {
-  return `
-    <div class="section-stack">
-      <article class="result-card">
-        <h3>Mock recruiter screen</h3>
-        <ul>
-          ${packet.mockRecruiterScreen.whyInterview.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-        </ul>
-      </article>
-      <article class="result-card">
-        <h3>Interview prep</h3>
-        <ul>
-          ${packet.interviewPrep
-            .slice(0, 8)
-            .map((item) => `<li><strong>${escapeHtml(item.question)}</strong><br />${escapeHtml(item.answerFrame)}</li>`)
-            .join("")}
-        </ul>
-      </article>
-      <article class="result-card">
-        <h3>Portfolio proof sprints</h3>
-        <ul>
-          ${packet.portfolioProjects
-            .map((item) => `<li><strong>${escapeHtml(item.title)}</strong><br />${escapeHtml(item.objective)}</li>`)
-            .join("")}
-        </ul>
-      </article>
-    </div>
-  `;
+  return createStack(
+    createCard("Mock recruiter screen", [
+      createList(packet.mockRecruiterScreen?.whyInterview ?? [], (item) => item)
+    ]),
+    createCard("Interview prep", [
+      createList((packet.interviewPrep ?? []).slice(0, 8), (item) => {
+        const fragment = document.createDocumentFragment();
+        fragment.append(
+          createElement("strong", { text: item.question || "Interview question" }),
+          document.createElement("br"),
+          document.createTextNode(item.answerFrame || "Use a specific, evidence-backed story.")
+        );
+        return fragment;
+      })
+    ]),
+    createCard("Portfolio proof sprints", [
+      createList(packet.portfolioProjects ?? [], (item) => {
+        const fragment = document.createDocumentFragment();
+        fragment.append(
+          createElement("strong", { text: item.title || "Proof sprint" }),
+          document.createElement("br"),
+          document.createTextNode(item.objective || "Show role evidence.")
+        );
+        return fragment;
+      })
+    ])
+  );
 }
 
 function renderJson(packet) {
-  return `
-    <div class="section-stack">
-      <article class="result-card">
-        <h3>Raw packet</h3>
-        <pre>${escapeHtml(JSON.stringify(packet, null, 2))}</pre>
-      </article>
-    </div>
-  `;
+  return createStack(
+    createCard("Raw packet", [createElement("pre", { text: JSON.stringify(packet, null, 2) })])
+  );
 }
 
 function renderError(error) {
   state.result = null;
   state.packet = null;
   updateOutputActions();
-  const details = Array.isArray(error?.details)
-    ? `<ul>${error.details.map((item) => `<li>${escapeHtml(item.field)}: ${escapeHtml(item.message)}</li>`).join("")}</ul>`
-    : "";
 
-  elements.resultPanel.innerHTML = `
-    <div class="error-box">
-      <strong>${escapeHtml(error?.message ?? "Vouch could not generate the packet.")}</strong>
-      ${details}
-    </div>
-  `;
+  const children = [
+    createElement("strong", { text: error?.message ?? "Vouch could not generate the packet." })
+  ];
+  if (Array.isArray(error?.details)) {
+    children.push(createList(error.details, (item) => item.field + ": " + item.message));
+  }
+
+  elements.beforeScore.textContent = "--";
+  elements.afterScore.textContent = "--";
+  elements.scoreFill.style.width = "0%";
+  elements.resultPanel.replaceChildren(createElement("div", { className: "error-box" }, children));
+}
+
+function createStack(...children) {
+  return createElement("div", { className: "section-stack" }, children);
+}
+
+function createCard(title, children) {
+  return createElement("article", { className: "result-card" }, [
+    createElement("h3", { text: title }),
+    ...children
+  ]);
+}
+
+function createMetric(label, value) {
+  return createElement("div", { className: "metric" }, [
+    createElement("span", { text: label }),
+    createElement("strong", { text: formatScore(value) })
+  ]);
+}
+
+function createChipRow(items) {
+  const chips = (items.length > 0 ? items : ["No matched strengths returned"])
+    .map((item) => createElement("span", { className: "chip", text: item }));
+  return createElement("div", { className: "chip-row" }, chips);
+}
+
+function createList(items, renderItem) {
+  const list = createElement("ul");
+  if (!Array.isArray(items) || items.length === 0) {
+    list.append(createElement("li", { text: "No items returned." }));
+    return list;
+  }
+
+  for (const item of items) {
+    const li = createElement("li");
+    const rendered = renderItem(item);
+    if (typeof rendered === "string") {
+      li.textContent = rendered;
+    } else {
+      li.append(rendered);
+    }
+    list.append(li);
+  }
+  return list;
+}
+
+function createParagraphWithBreaks(value) {
+  const paragraph = createElement("p");
+  const lines = String(value || "No recruiter summary returned.").split("\n");
+  lines.forEach((line, index) => {
+    if (index > 0) {
+      paragraph.append(document.createElement("br"));
+    }
+    paragraph.append(document.createTextNode(line));
+  });
+  return paragraph;
+}
+
+function createElement(tag, options = {}, children = []) {
+  const element = document.createElement(tag);
+  if (options.className) {
+    element.className = options.className;
+  }
+  if (options.text !== undefined) {
+    element.textContent = String(options.text);
+  }
+  for (const child of children) {
+    element.append(child);
+  }
+  return element;
+}
+
+function formatScore(value) {
+  return Number.isFinite(value) ? String(value) : "--";
 }
 
 async function readJsonResponse(response) {
@@ -318,12 +377,39 @@ function downloadFile(name) {
     return;
   }
 
+  const blob = base64ToBlob(file.data, safeDownloadMediaType(name));
+  const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
-  link.href = "data:" + file.mediaType + ";base64," + file.data;
-  link.download = file.filename;
+  link.href = url;
+  link.download = file.filename || "vouch-application-packet";
   document.body.append(link);
   link.click();
   link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function safeDownloadMediaType(name) {
+  if (name === "pdf") {
+    return "application/pdf";
+  }
+  if (name === "docx") {
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  }
+  return "application/octet-stream";
+}
+
+function base64ToBlob(data, mediaType) {
+  const binary = atob(data);
+  const chunks = [];
+  for (let index = 0; index < binary.length; index += 8192) {
+    const slice = binary.slice(index, index + 8192);
+    const bytes = new Uint8Array(slice.length);
+    for (let offset = 0; offset < slice.length; offset += 1) {
+      bytes[offset] = slice.charCodeAt(offset);
+    }
+    chunks.push(bytes);
+  }
+  return new Blob(chunks, { type: mediaType });
 }
 
 function updateTabs() {
@@ -343,13 +429,4 @@ function getValue(id) {
 
 function setValue(id, value) {
   document.querySelector(`#${id}`).value = value;
-}
-
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }

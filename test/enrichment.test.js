@@ -97,3 +97,23 @@ test("blocks redirects to private network job URLs", async () => {
     /host is not allowed/
   );
 });
+
+
+test("blocks hostnames with any private DNS answer before fetching", async () => {
+  let fetched = false;
+
+  await assert.rejects(
+    fetchJobUrlText("https://jobs.example.test/role", {
+      lookup: async () => [
+        { address: "93.184.216.34", family: 4 },
+        { address: "10.0.0.8", family: 4 }
+      ],
+      fetcher: async () => {
+        fetched = true;
+        return new Response("should not fetch");
+      }
+    }),
+    /host is not allowed/
+  );
+  assert.equal(fetched, false);
+});

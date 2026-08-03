@@ -38,6 +38,20 @@ const packet = {
     salaryGoal: "120000 USD",
     positioning: "Validate current market ranges."
   },
+  applicationStrategy: {
+    recruiterMessage: "Jane can bring systems evidence to the target team.",
+    portfolioPriority: "GenAI proof sprint",
+    firstWeekActions: ["Verify every rewritten bullet."],
+    riskWarnings: ["Do not invent GenAI production ownership."]
+  },
+  beforeAfterBulletImprovements: [
+    {
+      before: "Built dashboards.",
+      after: "Built dashboards that clarified product decisions.",
+      evidenceUsed: "Supported by supplied resume text.",
+      whyItWorks: "Adds impact framing without new claims."
+    }
+  ],
   gapBenchmark: [
     {
       requirement: "GenAI",
@@ -73,6 +87,9 @@ test("formats application packets as A2MCP-friendly paid deliverables", () => {
   assert.match(result.summary, /54 to 83/);
   assert.match(result.title, /Visa Senior Software Engineer/);
   assert.match(result.deliverable.markdown, /# Vouch Resume-to-Offer Packet/);
+  assert.match(result.deliverable.markdown, /## Application Strategy/);
+  assert.match(result.deliverable.markdown, /## Bullet Improvements/);
+  assert.match(result.deliverable.markdown, /Built dashboards that clarified product decisions/);
   assert.equal(result.deliverable.format, "markdown+json+pdf+docx");
   assert.equal(result.files.length, 2);
   assert.equal(result.deliverable.files.length, 2);

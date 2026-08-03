@@ -15,12 +15,13 @@ Vouch is not a generic resume writer. Its core behavior is job-to-resume benchma
 - Optional job-description fetching from public job URLs
 - Paid production access through x402 on X Layer
 - Downloadable PDF and Word-compatible DOCX files returned with each paid packet
+- Production security headers, least-privilege CORS, request rate limits, and private-network URL fetch blocking
 
 ## Architecture
 
 - Runtime: Node.js 20+ with Express
 - Payments: OKX x402 middleware with the exact EVM scheme
-- AI generation: OpenAI when configured, with a deterministic local fallback
+- AI generation: OpenAI for paid production, with a deterministic local fallback for development and explicit emergency operation
 - Public client: static files in `public/`
 - Core packet logic: `src/lib/`
 - Tests: Node.js built-in test runner under `test/`
@@ -118,6 +119,15 @@ VOUCH_PAYMENT_MODE=paid
 VOUCH_PRICE_USD=0.20
 VOUCH_ENABLE_URL_FETCH=true
 
+VOUCH_TRUST_PROXY=1
+VOUCH_ALLOWED_ORIGINS=https://YOUR_DEPLOYED_DOMAIN,https://www.okx.com,https://web3.okx.com,https://app.okx.com
+VOUCH_FRAME_ANCESTORS=self,https://okx.com,https://*.okx.com
+VOUCH_RATE_LIMIT_ENABLED=true
+VOUCH_RATE_LIMIT_WINDOW_MS=60000
+VOUCH_RATE_LIMIT_PUBLIC_MAX=120
+VOUCH_RATE_LIMIT_PACKET_MAX=30
+VOUCH_ALLOW_LOCAL_AI_IN_PAID=false
+
 PAY_TO_ADDRESS=0xYourXLayerReceivingWallet
 OKX_API_KEY=your_okx_developer_api_key
 OKX_SECRET_KEY=your_okx_developer_secret_key
@@ -132,7 +142,7 @@ VOUCH_OPENAI_TIMEOUT_MS=45000
 VOUCH_OPENAI_MAX_OUTPUT_TOKENS=7000
 ```
 
-Use `VOUCH_PAYMENT_MODE=free` only for local development and tests. Use `VOUCH_AI_PROVIDER=local` when you want deterministic local packet generation without an AI API key.
+Use `VOUCH_PAYMENT_MODE=free` only for local development and tests. Use `VOUCH_AI_PROVIDER=local` for deterministic local packet generation only in development. Paid production requires OpenAI unless `VOUCH_ALLOW_LOCAL_AI_IN_PAID=true` is deliberately set for an emergency fallback window.
 
 ## Payment Verification
 
@@ -165,7 +175,7 @@ Useful files:
 
 ## Data Handling
 
-Vouch processes request data in memory and does not persist candidate resumes or job descriptions by default. If you add persistence, logging, analytics, or third-party storage, document the data flow and avoid storing raw candidate documents unless the user explicitly opts in.
+Vouch processes request data in memory and does not persist candidate resumes or job descriptions by default. The app applies request-size limits, rate limits, security headers, and private-network blocking for public job URL fetching. If you add persistence, logging, analytics, or third-party storage, document the data flow and avoid storing raw candidate documents unless the user explicitly opts in.
 
 ## Additional Docs
 

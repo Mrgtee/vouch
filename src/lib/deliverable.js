@@ -95,6 +95,12 @@ function buildDeliverableMarkdown(packet, generation, title, summary) {
     "## Interview Prep",
     formatInterviewPrep(packet.interviewPrep),
     "",
+    "## Application Strategy",
+    formatApplicationStrategy(packet.applicationStrategy),
+    "",
+    "## Bullet Improvements",
+    formatBulletImprovements(packet.beforeAfterBulletImprovements),
+    "",
     "## Portfolio Proof Sprints",
     formatPortfolioProjects(packet.portfolioProjects),
     "",
@@ -131,6 +137,32 @@ function formatInterviewPrep(items) {
     `${index + 1}. ${cleanText(item.question) || "Interview question"}`,
     `   Why asked: ${cleanText(item.whyAsked) || "Role relevance"}`,
     `   Answer frame: ${cleanText(item.answerFrame) || "Use a specific, evidence-backed story."}`
+  ].join("\n")).join("\n");
+}
+
+function formatApplicationStrategy(strategy) {
+  if (!strategy || typeof strategy !== "object") {
+    return "No application strategy returned.";
+  }
+
+  return [
+    cleanText(strategy.recruiterMessage) ? "Recruiter message: " + cleanText(strategy.recruiterMessage) : "",
+    cleanText(strategy.portfolioPriority) ? "Portfolio priority: " + cleanText(strategy.portfolioPriority) : "",
+    formatList("First week actions", strategy.firstWeekActions),
+    formatList("Risk warnings", strategy.riskWarnings)
+  ].filter(Boolean).join("\n");
+}
+
+function formatBulletImprovements(items) {
+  if (!Array.isArray(items) || items.length === 0) {
+    return "No bullet improvements returned.";
+  }
+
+  return items.map((item, index) => [
+    (index + 1) + ". Before: " + (cleanText(item.before || item.original) || "Original bullet not returned."),
+    "   After: " + (cleanText(item.after || item.rewritten) || "Rewritten bullet not returned."),
+    "   Evidence check: " + (cleanText(item.evidenceUsed || item.evidenceRisk) || "Verify against supplied resume evidence."),
+    "   Why it works: " + (cleanText(item.whyItWorks) || "Improves role alignment without inventing unsupported claims.")
   ].join("\n")).join("\n");
 }
 

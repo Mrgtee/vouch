@@ -10,11 +10,11 @@ Category: `Resume & Career Workflows`
 
 Short description:
 
-`Paid evidence-backed job-to-offer workflow that benchmarks a resume against target jobs and returns an ATS resume, recruiter screen, interview prep, portfolio proof sprints, salary positioning, and fit-gap plan.`
+`Paid evidence-backed job-to-offer workflow that benchmarks a resume against target jobs and returns an ATS resume, recruiter screen, interview prep, portfolio proof sprints, salary positioning, fit-gap plan, and downloadable PDF/DOCX files.`
 
 Long description:
 
-`Vouch uses OpenAI plus local evidence guardrails to help candidates move from generic applications to role-specific opportunity packets. Provide a resume or profile notes plus one to three target job descriptions or public job URLs. Vouch extracts role requirements, benchmarks the candidate against the jobs, rewrites only from supplied evidence, flags missing proof, and returns an application packet with an ATS-ready resume, recruiter-facing summary, mock recruiter screen, interview prep, portfolio project suggestions, salary positioning, and explainable fit scores.`
+`Vouch uses OpenAI plus local evidence guardrails to help candidates move from generic applications to role-specific opportunity packets. Provide a resume or profile notes plus one to three target job descriptions or public job URLs. Vouch extracts role requirements, benchmarks the candidate against the jobs, rewrites only from supplied evidence, flags missing proof, and returns an application packet with an ATS-ready resume, recruiter-facing summary, mock recruiter screen, interview prep, portfolio project suggestions, salary positioning, and explainable fit scores, plus PDF and DOCX artifacts users can download after payment.`
 
 ## Service
 

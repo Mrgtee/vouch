@@ -8,6 +8,7 @@ import { ExactEvmScheme } from "@okxweb3/x402-evm/exact/server";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prepareApplicationPacketPayload } from "./lib/enrichment.js";
+import { createRateLimiter } from "./lib/rateLimit.js";
 import { createApplicationPacketWithAi } from "./lib/aiPacket.js";
 import { getPublicAiConfig, getPublicPaymentConfig, getRuntimeConfig } from "./lib/config.js";
 import { formatApplicationPacketResult } from "./lib/deliverable.js";
@@ -28,9 +29,13 @@ const X_LAYER_USDT0_DECIMALS = 6;
 const config = getRuntimeConfig();
 const app = express();
 
-app.set("trust proxy", true);
+app.set("trust proxy", config.security.trustProxy);
 app.disable("x-powered-by");
 app.use(setSecurityHeaders);
+app.use(createRateLimiter({
+  ...config.security.rateLimit,
+  packetPaths: [APPLICATION_PACKET_ROUTE]
+}));
 app.use(express.json({ limit: JSON_LIMIT }));
 
 
@@ -76,7 +81,12 @@ app.post("/api/a2mcp", async (request, response, next) => {
   }
 });
 
-app.use(express.static(PUBLIC_DIR, { etag: false, maxAge: 0 }));
+app.use(express.static(PUBLIC_DIR, {
+  dotfiles: "ignore",
+  etag: false,
+  index: false,
+  maxAge: 0
+}));
 
 app.use((request, response) => {
   if (request.method === "GET") {
@@ -319,19 +329,15 @@ async function handleA2Mcp(body) {
 }
 
 function setSecurityHeaders(request, response, next) {
-  response.setHeader("access-control-allow-origin", "*");
-  response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
-  response.setHeader(
-    "access-control-allow-headers",
-    "content-type, payment, x-payment, payment-signature"
-  );
-  response.setHeader(
-    "access-control-expose-headers",
-    "payment-required, payment-response, x-payment, payment-signature"
-  );
+  setCorsHeaders(request, response);
+  response.setHeader("content-security-policy", buildContentSecurityPolicy());
   response.setHeader("x-content-type-options", "nosniff");
   response.setHeader("referrer-policy", "no-referrer");
   response.setHeader("cache-control", "no-store");
+  response.setHeader("cross-origin-resource-policy", "same-origin");
+  response.setHeader("origin-agent-cluster", "?1");
+  response.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
+  response.setHeader("x-permitted-cross-domain-policies", "none");
 
   if (request.method === "OPTIONS") {
     response.status(204).end();
@@ -339,4 +345,78 @@ function setSecurityHeaders(request, response, next) {
   }
 
   next();
+}
+
+function setCorsHeaders(request, response) {
+  const origin = request.get("origin");
+  const allowedOrigin = getAllowedOrigin(origin);
+  if (allowedOrigin) {
+    response.setHeader("access-control-allow-origin", allowedOrigin);
+    appendVary(response, "Origin");
+  }
+
+  response.setHeader("access-control-allow-methods", "GET,POST,OPTIONS");
+  response.setHeader(
+    "access-control-allow-headers",
+    "accept, authorization, content-type, payment, x-payment, payment-signature"
+  );
+  response.setHeader(
+    "access-control-expose-headers",
+    "payment-required, payment-response, x-payment, payment-signature"
+  );
+}
+
+function getAllowedOrigin(origin) {
+  if (!origin) {
+    return "";
+  }
+
+  try {
+    const parsed = new URL(origin);
+    if (!["https:", "http:"].includes(parsed.protocol)) {
+      return "";
+    }
+  } catch {
+    return "";
+  }
+
+  return config.security.allowedOrigins.some((allowed) => originMatches(origin, allowed)) ? origin : "";
+}
+
+function originMatches(origin, allowed) {
+  if (allowed.startsWith("https://*.")) {
+    const suffix = allowed.slice("https://*.".length);
+    const hostname = new URL(origin).hostname.toLowerCase();
+    return new URL(origin).protocol === "https:" && hostname.endsWith("." + suffix);
+  }
+
+  return origin === allowed;
+}
+
+function buildContentSecurityPolicy() {
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors " + config.security.frameAncestors.join(" ")
+  ].join("; ");
+}
+
+function appendVary(response, value) {
+  const current = response.getHeader("vary");
+  if (!current) {
+    response.setHeader("vary", value);
+    return;
+  }
+
+  const values = String(current).split(",").map((entry) => entry.trim().toLowerCase());
+  if (!values.includes(value.toLowerCase())) {
+    response.setHeader("vary", String(current) + ", " + value);
+  }
 }

@@ -1,4 +1,6 @@
 import dns from "node:dns/promises";
+import http from "node:http";
+import https from "node:https";
 import net from "node:net";
 import { cleanText } from "./text.js";
 
@@ -79,20 +81,15 @@ async function enrichJob(job, fetcher) {
 }
 
 export async function fetchJobUrlText(url, options = {}) {
-  const fetcher = options.fetcher ?? fetch;
+  const fetcher = options.fetcher;
   const lookup = options.lookup ?? dns.lookup;
   let parsed = parseAllowedFetchUrl(url);
 
   for (let redirectCount = 0; redirectCount <= MAX_REDIRECTS; redirectCount += 1) {
-    await assertHostResolvesPublicly(parsed.hostname, lookup);
-    const response = await fetcher(parsed, {
-      redirect: "manual",
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      headers: {
-        accept: "text/html,text/plain,application/xhtml+xml",
-        "user-agent": "VouchCareerASP/0.3 (+https://vouch.ai)"
-      }
-    });
+    const resolved = await resolvePublicAddress(parsed.hostname, lookup);
+    const response = fetcher
+      ? await fetcher(parsed, buildFetchOptions())
+      : await requestTextResponse(parsed, resolved);
 
     if (isRedirectStatus(response.status)) {
       if (redirectCount === MAX_REDIRECTS) {
@@ -107,6 +104,21 @@ export async function fetchJobUrlText(url, options = {}) {
   }
 
   throw new Error("Job URL redirected too many times.");
+}
+
+function buildFetchOptions() {
+  return {
+    redirect: "manual",
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    headers: requestHeaders()
+  };
+}
+
+function requestHeaders() {
+  return {
+    accept: "text/html,text/plain,application/xhtml+xml",
+    "user-agent": "VouchCareerASP/0.3 (+https://vouch.ai)"
+  };
 }
 
 async function readTextResponse(response) {
@@ -127,9 +139,10 @@ async function readTextResponse(response) {
   return extractReadablePageText(await response.text());
 }
 
-async function assertHostResolvesPublicly(hostname, lookup) {
-  if (net.isIP(hostname)) {
-    return;
+async function resolvePublicAddress(hostname, lookup) {
+  const ipVersion = net.isIP(hostname);
+  if (ipVersion) {
+    return { address: hostname, family: ipVersion };
   }
 
   let records;
@@ -146,6 +159,70 @@ async function assertHostResolvesPublicly(hostname, lookup) {
   if (records.some((record) => isPrivateIp(record.address))) {
     throw new Error("Job URL host is not allowed.");
   }
+
+  const selected = records[0];
+  return {
+    address: selected.address,
+    family: selected.family || net.isIP(selected.address)
+  };
+}
+
+function requestTextResponse(parsed, resolved) {
+  return new Promise((resolve, reject) => {
+    const transport = parsed.protocol === "https:" ? https : http;
+    const request = transport.request(parsed, {
+      method: "GET",
+      headers: requestHeaders(),
+      lookup: (_hostname, _options, callback) => {
+        callback(null, resolved.address, resolved.family);
+      }
+    }, (incoming) => {
+      const headers = incoming.headers;
+      const contentLength = Number(headers["content-length"] ?? 0);
+      const chunks = [];
+      let bytes = 0;
+
+      if (contentLength > MAX_CONTENT_LENGTH) {
+        incoming.resume();
+        resolve(toFetchLikeResponse(incoming, headers, chunks));
+        return;
+      }
+
+      incoming.on("data", (chunk) => {
+        bytes += chunk.length;
+        if (bytes > MAX_CONTENT_LENGTH) {
+          request.destroy(new Error("Job URL response is too large."));
+          return;
+        }
+        chunks.push(chunk);
+      });
+      incoming.on("end", () => {
+        resolve(toFetchLikeResponse(incoming, headers, chunks));
+      });
+    });
+
+    request.setTimeout(FETCH_TIMEOUT_MS, () => {
+      request.destroy(new Error("Job URL fetch timed out."));
+    });
+    request.on("error", reject);
+    request.end();
+  });
+}
+
+function toFetchLikeResponse(incoming, headers, chunks) {
+  return {
+    ok: incoming.statusCode >= 200 && incoming.statusCode < 300,
+    status: incoming.statusCode,
+    headers: {
+      get: (name) => getHeader(headers, name)
+    },
+    text: async () => Buffer.concat(chunks).toString("utf8")
+  };
+}
+
+function getHeader(headers, name) {
+  const value = headers[String(name).toLowerCase()];
+  return Array.isArray(value) ? value.join(", ") : value || "";
 }
 
 function parseRedirectUrl(response, currentUrl) {

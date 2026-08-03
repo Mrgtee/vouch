@@ -4,10 +4,16 @@ const PDF_PAGE_WIDTH = 612;
 const PDF_PAGE_HEIGHT = 792;
 const PDF_MARGIN_X = 54;
 const PDF_START_Y = 742;
-const PDF_FONT_SIZE = 10;
+const PDF_BODY_FONT_SIZE = 10;
+const PDF_HEADING_FONT_SIZE = 13;
+const PDF_TITLE_FONT_SIZE = 17;
 const PDF_LINE_HEIGHT = 14;
-const PDF_MAX_LINES = 49;
+const PDF_HEADING_LINE_HEIGHT = 17;
+const PDF_TITLE_LINE_HEIGHT = 21;
+const PDF_MAX_LINES = 46;
 const PDF_WRAP_CHARS = 92;
+const PDF_HEADING_WRAP_CHARS = 76;
+const PDF_TITLE_WRAP_CHARS = 58;
 
 const DOCX_MEDIA_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
@@ -42,11 +48,16 @@ export function buildDocumentArtifacts({ title, markdown }) {
 
 function buildPdfDocument(markdown) {
   const pages = paginateLines(markdownToPdfLines(markdown));
-  const objects = [null, null, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"];
+  const objects = [
+    null,
+    null,
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>"
+  ];
   const pageIds = [];
 
-  for (const pageLines of pages) {
-    const contentStream = buildPdfContentStream(pageLines);
+  for (const [pageIndex, pageLines] of pages.entries()) {
+    const contentStream = buildPdfContentStream(pageLines, pageIndex + 1, pages.length);
     const contentId = addPdfObject(
       objects,
       [
@@ -62,7 +73,7 @@ function buildPdfDocument(markdown) {
         "<< /Type /Page",
         "/Parent 2 0 R",
         `/MediaBox [0 0 ${PDF_PAGE_WIDTH} ${PDF_PAGE_HEIGHT}]`,
-        "/Resources << /Font << /F1 3 0 R >> >>",
+        "/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >>",
         `/Contents ${contentId} 0 R`,
         ">>"
       ].join(" ")
@@ -79,7 +90,36 @@ function buildPdfDocument(markdown) {
 function markdownToPdfLines(markdown) {
   return cleanText(markdown)
     .split("\n")
-    .flatMap((line) => wrapPdfLine(markdownLineToPlainText(line)));
+    .flatMap((line) => markdownLineToPdfBlocks(line));
+}
+
+function markdownLineToPdfBlocks(line) {
+  const cleaned = cleanText(line);
+  if (!cleaned) {
+    return [{ text: "", style: "blank" }];
+  }
+
+  if (cleaned.startsWith("# ")) {
+    return wrapPdfLine(cleaned.replace(/^#\s+/, ""), "title");
+  }
+
+  if (cleaned.startsWith("## ")) {
+    return wrapPdfLine(cleaned.replace(/^##\s+/, ""), "heading");
+  }
+
+  if (/^[-*]\s+/.test(cleaned)) {
+    return wrapPdfLine(cleaned.replace(/^[-*]\s+/, "- "), "list");
+  }
+
+  if (/^\d+\.\s+/.test(cleaned)) {
+    return wrapPdfLine(cleaned, "list");
+  }
+
+  if (/^(Decision|Recruiter message|Portfolio priority|Before|After|Evidence check|Why it works):/i.test(cleaned)) {
+    return wrapPdfLine(markdownLineToPlainText(cleaned), "emphasis");
+  }
+
+  return wrapPdfLine(markdownLineToPlainText(cleaned), "body");
 }
 
 function markdownLineToPlainText(line) {
@@ -90,19 +130,24 @@ function markdownLineToPlainText(line) {
     .replace(/`([^`]+)`/g, "$1");
 }
 
-function wrapPdfLine(line) {
+function wrapPdfLine(line, style = "body") {
   if (!line) {
-    return [""];
+    return [{ text: "", style: "blank" }];
   }
 
+  const maxChars = style === "title"
+    ? PDF_TITLE_WRAP_CHARS
+    : style === "heading"
+      ? PDF_HEADING_WRAP_CHARS
+      : PDF_WRAP_CHARS;
   const words = toPdfSafeText(line).split(/\s+/);
   const lines = [];
   let current = "";
 
   for (const word of words) {
-    const next = current ? `${current} ${word}` : word;
-    if (next.length > PDF_WRAP_CHARS && current) {
-      lines.push(current);
+    const next = current ? current + " " + word : word;
+    if (next.length > maxChars && current) {
+      lines.push({ text: current, style });
       current = word;
     } else {
       current = next;
@@ -110,7 +155,7 @@ function wrapPdfLine(line) {
   }
 
   if (current) {
-    lines.push(current);
+    lines.push({ text: current, style });
   }
 
   return lines;
@@ -123,26 +168,60 @@ function paginateLines(lines) {
     pages.push(lines.slice(index, index + PDF_MAX_LINES));
   }
 
-  return pages.length > 0 ? pages : [["Vouch application packet"]];
+  return pages.length > 0 ? pages : [[{ text: "Vouch application packet", style: "title" }]];
 }
 
-function buildPdfContentStream(lines) {
+function buildPdfContentStream(lines, pageNumber, pageCount) {
   const commands = [
+    "0.059 0.561 0.447 rg",
+    "0 " + (PDF_PAGE_HEIGHT - 26) + " " + PDF_PAGE_WIDTH + " 26 re f",
     "BT",
-    `/F1 ${PDF_FONT_SIZE} Tf`,
-    `${PDF_LINE_HEIGHT} TL`,
-    `${PDF_MARGIN_X} ${PDF_START_Y} Td`
+    "/F2 9 Tf",
+    "1 1 1 rg",
+    PDF_MARGIN_X + " " + (PDF_PAGE_HEIGHT - 17) + " Td",
+    "(Vouch Resume-to-Offer Packet) Tj",
+    "ET",
+    "BT",
+    PDF_MARGIN_X + " " + PDF_START_Y + " Td"
   ];
 
   for (const line of lines) {
-    if (line) {
-      commands.push(`(${escapePdfText(line)}) Tj`);
+    const style = pdfTextStyle(line.style);
+    commands.push("/" + style.font + " " + style.size + " Tf");
+    commands.push(style.lineHeight + " TL");
+    commands.push(style.color + " rg");
+    if (line.text) {
+      commands.push("(" + escapePdfText(line.text) + ") Tj");
     }
     commands.push("T*");
   }
 
-  commands.push("ET");
+  commands.push(
+    "ET",
+    "BT",
+    "/F1 8 Tf",
+    "0.36 0.42 0.45 rg",
+    PDF_MARGIN_X + " 32 Td",
+    "(Page " + pageNumber + " of " + pageCount + " | Generated by Vouch) Tj",
+    "ET"
+  );
   return commands.join("\n");
+}
+
+function pdfTextStyle(style) {
+  if (style === "title") {
+    return { font: "F2", size: PDF_TITLE_FONT_SIZE, lineHeight: PDF_TITLE_LINE_HEIGHT, color: "0.09 0.13 0.15" };
+  }
+
+  if (style === "heading") {
+    return { font: "F2", size: PDF_HEADING_FONT_SIZE, lineHeight: PDF_HEADING_LINE_HEIGHT, color: "0.05 0.44 0.36" };
+  }
+
+  if (style === "emphasis") {
+    return { font: "F2", size: PDF_BODY_FONT_SIZE, lineHeight: PDF_LINE_HEIGHT, color: "0.09 0.13 0.15" };
+  }
+
+  return { font: "F1", size: PDF_BODY_FONT_SIZE, lineHeight: PDF_LINE_HEIGHT, color: "0.09 0.13 0.15" };
 }
 
 function addPdfObject(objects, body) {
@@ -284,10 +363,11 @@ function stylesXml() {
   return [
     xmlDeclaration(),
     '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">',
-    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style>',
-    '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:rPr><w:b/><w:sz w:val="32"/></w:rPr></w:style>',
-    '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:rPr><w:b/><w:sz w:val="24"/></w:rPr></w:style>',
-    '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:ind w:left="360"/></w:pPr></w:style>',
+    '<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="22"/><w:color w:val="172026"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>',
+    '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:rFonts w:ascii="Aptos" w:hAnsi="Aptos"/><w:sz w:val="22"/><w:color w:val="172026"/></w:rPr></w:style>',
+    '<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="0" w:after="240"/></w:pPr><w:rPr><w:b/><w:sz w:val="36"/><w:color w:val="08705B"/></w:rPr></w:style>',
+    '<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="240" w:after="120"/></w:pPr><w:rPr><w:b/><w:sz w:val="26"/><w:color w:val="26323A"/></w:rPr></w:style>',
+    '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:ind w:left="360"/><w:spacing w:after="80"/></w:pPr><w:rPr><w:sz w:val="21"/></w:rPr></w:style>',
     "</w:styles>"
   ].join("");
 }
