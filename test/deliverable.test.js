@@ -73,6 +73,20 @@ test("formats application packets as A2MCP-friendly paid deliverables", () => {
   assert.match(result.summary, /54 to 83/);
   assert.match(result.title, /Visa Senior Software Engineer/);
   assert.match(result.deliverable.markdown, /# Vouch Resume-to-Offer Packet/);
+  assert.equal(result.deliverable.format, "markdown+json+pdf+docx");
+  assert.equal(result.files.length, 2);
+  assert.equal(result.deliverable.files.length, 2);
+  assert.equal(result.structuredContent.files.length, 2);
   assert.match(result.content[0].text, /Likely phone screen/);
   assert.equal(result.content[1].type, "json");
+  assert.equal(result.content[1].json.files.length, 2);
+
+  const pdf = result.files.find((file) => file.name === "pdf");
+  const docx = result.files.find((file) => file.name === "docx");
+  assert.equal(pdf.mediaType, "application/pdf");
+  assert.equal(docx.mediaType, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+  assert.equal(Buffer.from(pdf.data, "base64").subarray(0, 4).toString("latin1"), "%PDF");
+  const docxBytes = Buffer.from(docx.data, "base64");
+  assert.equal(docxBytes.subarray(0, 2).toString("latin1"), "PK");
+  assert.ok(docxBytes.includes(Buffer.from("[Content_Types].xml")));
 });

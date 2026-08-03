@@ -14,6 +14,7 @@ Vouch is not a generic resume writer. Its core behavior is job-to-resume benchma
 - Salary-positioning guidance from candidate goals and role context
 - Optional job-description fetching from public job URLs
 - Paid production access through x402 on X Layer
+- Downloadable PDF and Word-compatible DOCX files returned with each paid packet
 
 ## Architecture
 
@@ -69,13 +70,20 @@ Example request body:
 
 Each target job may include a pasted `description` or a public `url`. When `VOUCH_ENABLE_URL_FETCH=true`, Vouch fetches missing job descriptions from public URLs and blocks private-network targets. For GET replay, pass `resumeText` plus `targetJobs` as a JSON array string, or pass `serviceParams` as a JSON object containing the same fields.
 
-Paid responses include the original `packet` object plus an agent-friendly envelope:
+Paid responses include the original `packet` object, downloadable document files, and an agent-friendly envelope. Files are returned as base64 artifacts so OKX/A2MCP clients can save them without a separate storage service:
 
 ```json
 {
   "ok": true,
   "summary": "Fit score improved from 54 to 83...",
-  "deliverable": { "format": "markdown+json", "markdown": "# Vouch Resume-to-Offer Packet..." },
+  "deliverable": {
+    "format": "markdown+json+pdf+docx",
+    "markdown": "# Vouch Resume-to-Offer Packet...",
+    "files": [
+      { "name": "pdf", "filename": "vouch-resume-to-offer-packet.pdf", "mediaType": "application/pdf", "encoding": "base64", "data": "..." },
+      { "name": "docx", "filename": "vouch-resume-to-offer-packet.docx", "mediaType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "encoding": "base64", "data": "..." }
+    ]
+  },
   "content": [{ "type": "text", "text": "# Vouch Resume-to-Offer Packet..." }],
   "structuredContent": { "packet": {} },
   "packet": {}

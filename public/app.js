@@ -1,5 +1,6 @@
 const state = {
   packet: null,
+  result: null,
   activeTab: "overview"
 };
 
@@ -11,6 +12,8 @@ const elements = {
   loadSampleButton: document.querySelector("#loadSampleButton"),
   generateButton: document.querySelector("#generateButton"),
   copyJsonButton: document.querySelector("#copyJsonButton"),
+  downloadPdfButton: document.querySelector("#downloadPdfButton"),
+  downloadDocxButton: document.querySelector("#downloadDocxButton"),
   resultPanel: document.querySelector("#resultPanel"),
   beforeScore: document.querySelector("#beforeScore"),
   afterScore: document.querySelector("#afterScore"),
@@ -51,6 +54,8 @@ function bindEvents() {
   elements.loadSampleButton.addEventListener("click", loadSample);
   elements.generateButton.addEventListener("click", generatePacket);
   elements.copyJsonButton.addEventListener("click", copyJson);
+  elements.downloadPdfButton.addEventListener("click", () => downloadFile("pdf"));
+  elements.downloadDocxButton.addEventListener("click", () => downloadFile("docx"));
   elements.resumeFile.addEventListener("change", importResumeFile);
 
   for (const tab of elements.tabs) {
@@ -126,8 +131,9 @@ async function generatePacket() {
       throw data;
     }
 
+    state.result = data;
     state.packet = data.packet;
-    elements.copyJsonButton.disabled = false;
+    updateOutputActions();
     renderPacket();
   } catch (error) {
     renderError(error);
@@ -200,7 +206,7 @@ function renderOverview(packet) {
       </article>
       <article class="result-card">
         <h3>Gaps to close</h3>
-        <ul>${strongGaps.map((gap) => `<li>${escapeHtml(gap.requirement)}: ${escapeHtml(gap.recommendation)}</li>`).join("")}</ul>
+        <ul>${strongGaps.map((gap) => `<li>${escapeHtml(gap.label || gap.requirement)}: ${escapeHtml(gap.recommendation)}</li>`).join("")}</ul>
       </article>
     </div>
   `;
@@ -259,6 +265,9 @@ function renderJson(packet) {
 }
 
 function renderError(error) {
+  state.result = null;
+  state.packet = null;
+  updateOutputActions();
   const details = Array.isArray(error?.details)
     ? `<ul>${error.details.map((item) => `<li>${escapeHtml(item.field)}: ${escapeHtml(item.message)}</li>`).join("")}</ul>`
     : "";
@@ -289,11 +298,32 @@ async function copyJson() {
     return;
   }
 
-  await navigator.clipboard.writeText(JSON.stringify(state.packet, null, 2));
+  await navigator.clipboard.writeText(JSON.stringify(state.result ?? state.packet, null, 2));
   elements.copyJsonButton.textContent = "Copied";
   setTimeout(() => {
     elements.copyJsonButton.textContent = "Copy JSON";
   }, 1200);
+}
+
+function updateOutputActions() {
+  const files = state.result?.files ?? [];
+  elements.copyJsonButton.disabled = !state.result;
+  elements.downloadPdfButton.disabled = !files.some((file) => file.name === "pdf");
+  elements.downloadDocxButton.disabled = !files.some((file) => file.name === "docx");
+}
+
+function downloadFile(name) {
+  const file = state.result?.files?.find((item) => item.name === name);
+  if (!file?.data) {
+    return;
+  }
+
+  const link = document.createElement("a");
+  link.href = "data:" + file.mediaType + ";base64," + file.data;
+  link.download = file.filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
 }
 
 function updateTabs() {

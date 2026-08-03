@@ -143,6 +143,13 @@ button {
   margin-bottom: 16px;
 }
 
+.output-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .pane-heading h2 {
   font-size: 20px;
   line-height: 1.1;
@@ -275,6 +282,10 @@ textarea:focus {
 .secondary-button:disabled {
   cursor: not-allowed;
   color: #99a3aa;
+}
+
+.output-actions .secondary-button {
+  min-width: 78px;
 }
 
 .privacy-note {

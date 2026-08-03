@@ -8,6 +8,7 @@ import { cleanText, extractNumbers, hasKeyword } from "./text.js";
 import { validateApplicationPacketRequest } from "./validation.js";
 
 const LOW_SIGNAL_GAPS = new Set([
+  "agent",
   "analyst",
   "best",
   "build",
@@ -16,6 +17,7 @@ const LOW_SIGNAL_GAPS = new Set([
   "communication",
   "complex",
   "configure",
+  "coordinate",
   "contribute",
   "data",
   "delivery",
@@ -28,16 +30,21 @@ const LOW_SIGNAL_GAPS = new Set([
   "environments",
   "features",
   "improve",
+  "initiatives",
   "management",
   "manage",
+  "measure",
   "metrics",
   "model",
   "multi-service",
   "practices",
+  "productivity",
   "role",
   "senior",
   "software",
+  "specs",
   "translate",
+  "write",
   "using",
   "workflows"
 ]);
@@ -50,45 +57,78 @@ const DISPLAY_KEYWORDS = new Map([
   ["api contracts", "API contract collaboration"],
   ["apis", "API design and integration"],
   ["automation", "workflow automation"],
+  ["ai operations", "AI operations product strategy"],
   ["backend systems", "backend systems"],
+  ["bi dashboards", "BI dashboards"],
   ["ci/cd", "CI/CD automation"],
+  ["clinical", "clinical stakeholder coordination"],
+  ["clinical stakeholder coordination", "clinical stakeholder coordination"],
   ["diagnostics", "funnel diagnostics"],
   ["distributed", "distributed systems"],
   ["distributed environments", "distributed systems"],
+  ["healthcare", "healthcare domain experience"],
+  ["healthcare compliance", "healthcare compliance"],
   ["executive", "executive-ready communication"],
   ["github actions", "GitHub Actions CI/CD"],
   ["impact", "measurable impact"],
+  ["operational impact", "operational impact measurement"],
   ["llm", "LLM integration"],
   ["llm apis", "LLM API integration"],
   ["microservices", "microservices architecture"],
   ["microservices architecture", "microservices architecture"],
   ["openai", "OpenAI API integration"],
   ["openai apis", "OpenAI API integration"],
+  ["product", "product strategy"],
+  ["product management", "product management"],
+  ["product operations", "product operations"],
+  ["product specs", "product specification writing"],
   ["pipelines", "delivery pipelines"],
   ["react", "React frontends"],
   ["react frontends", "React frontends"],
+  ["requirements definition", "requirements definition"],
+  ["roadmap ownership", "roadmap ownership"],
   ["sql", "SQL"],
   ["stakeholder", "stakeholder communication"],
   ["stakeholder management", "stakeholder management"],
+  ["workflow automation", "workflow automation"],
   ["storytelling", "impact storytelling"]
 ]);
 
 const CANONICAL_KEYWORDS = new Map([
+  ["agile roadmaps", "roadmap ownership"],
+  ["ai operations", "ai operations"],
+  ["ai-assisted", "llm apis"],
   ["apis", "api"],
   ["api contracts", "api contracts"],
   ["llm apis", "llm apis"],
+  ["llm powered", "llm apis"],
+  ["llm-powered", "llm apis"],
+  ["llm-powered workflow automation", "llm apis"],
   ["openai", "openai apis"],
   ["openai apis", "openai apis"],
+  ["operational impact", "operational impact"],
   ["genai", "llm apis"],
   ["genai-powered", "llm apis"],
+  ["healthcare compliance", "healthcare compliance"],
   ["generative ai", "llm apis"],
   ["llms", "llm"],
   ["github actions", "ci/cd"],
+  ["patient-support", "support operations"],
   ["pipeline", "ci/cd"],
   ["pipelines", "ci/cd"],
   ["microservices", "microservices architecture"],
   ["distributed", "distributed environments"],
-  ["react frontends", "react"]
+  ["react frontends", "react"],
+  ["bi dashboards", "dashboards"],
+  ["clinical", "clinical stakeholder coordination"],
+  ["clinical stakeholders", "clinical stakeholder coordination"],
+  ["product management", "product management"],
+  ["product operations", "product operations"],
+  ["product specs", "product specs"],
+  ["requirements", "requirements definition"],
+  ["requirements definition", "requirements definition"],
+  ["roadmap", "roadmap ownership"],
+  ["roadmaps", "roadmap ownership"]
 ]);
 
 export function createApplicationPacket(rawPayload) {
@@ -587,6 +627,7 @@ function buildPremiumGapBenchmark({ gaps, topMissing, resumeText }) {
     const evidence = Array.isArray(gap.evidence) ? gap.evidence : [];
     byRequirement.set(requirement, {
       requirement,
+      label: displayKeyword(requirement),
       status: evidence.length > 0 || hasKeyword(resumeText, requirement) ? gap.status : "missing",
       evidence,
       recommendation: recommendationForGap(requirement, evidence)
@@ -597,6 +638,7 @@ function buildPremiumGapBenchmark({ gaps, topMissing, resumeText }) {
     if (!byRequirement.has(keyword)) {
       byRequirement.set(keyword, {
         requirement: keyword,
+        label: displayKeyword(keyword),
         status: "missing",
         evidence: [],
         recommendation: recommendationForGap(keyword, [])

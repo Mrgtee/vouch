@@ -102,3 +102,48 @@ test("creates a premium local packet for the Alex/Visa paid flow", () => {
   assert.match(packet.applicationStrategy.recruiterMessage, /Visa Senior Software Engineer/);
   assert.match(packet.salaryPositioning.negotiationScript, /CI\/CD automation|LLM API integration|React frontends/);
 });
+
+
+const ninaResumeText = `
+Nina Adeyemi | Product Operations Lead | nina.adeyemi@example.com
+Summary: I have 7 years of experience leading product operations, workflow automation, and healthcare SaaS programs. I work closely with engineering, design, support, and compliance teams. I use SQL, Looker, Jira, Zendesk, Salesforce, and light Python scripting to improve operational workflows.
+Experience:
+Product Operations Lead at CareLoop Health (2022 - Present): Owned the intake triage platform for patient-support operations. Reduced manual review time by 38% by redesigning routing rules, creating SQL dashboards, and improving escalation workflows. Partnered with engineering to define API handoff requirements for a scheduling partner integration. Piloted AI-assisted ticket summaries with compliance review before rollout.
+Senior Product Analyst at MedBridge Labs (2019 - 2022): Built cohort reporting in Looker, ran product experiments, documented operating playbooks, and improved new-user activation by 14%. Coordinated Agile backlog grooming with design and engineering for analytics, onboarding, and support tooling.
+Skills: Product strategy, SQL, Looker, Jira, workflow automation, API requirements, healthcare compliance, Zendesk, Salesforce, stakeholder management, experimentation.
+`;
+
+const horizonJobDescription = `
+Lead AI operations product initiatives for a healthcare platform. Define requirements for LLM-powered workflow automation, partner with engineering on API contracts, measure operational impact with SQL and BI dashboards, manage Agile roadmaps, write product specs, coordinate clinical and compliance stakeholders, and improve patient-support agent productivity.
+`;
+
+test("polishes local packet labels for healthcare product operations flow", () => {
+  const result = createApplicationPacket({
+    resumeText: ninaResumeText,
+    targetJobs: [
+      {
+        title: "Senior Product Manager, AI Operations",
+        company: "Horizon Health",
+        url: "https://horizon-health.example/jobs/ai-ops-pm",
+        description: horizonJobDescription
+      }
+    ]
+  });
+
+  const packet = result.packet;
+  const labels = packet.gapBenchmark.map((gap) => gap.label || gap.requirement);
+  const userFacing = [
+    packet.atsResume,
+    packet.recruiterSummary,
+    ...packet.interviewPrep.map((item) => item.question),
+    ...packet.portfolioProjects.map((item) => item.title + " " + item.objective),
+    ...labels
+  ].join("\n");
+
+  assert.match(packet.atsResume, /^Nina Adeyemi\nSenior Product Manager, AI Operations/m);
+  assert.ok(labels.every((label) => !/^(agent|coordinate|initiatives|llm-powered)$/i.test(label)));
+  assert.doesNotMatch(userFacing, /asks for agent\b|Agent proof sprint|Coordinate proof sprint|Initiatives proof sprint|Llm-powered proof sprint/i);
+  assert.doesNotMatch(packet.atsResume, /remaining proof gaps are agent, clinical and coordinate/i);
+  assert.ok(labels.includes("clinical stakeholder coordination") || labels.includes("LLM API integration"));
+  assert.ok(packet.beforeAfterBulletImprovements.length >= 2);
+});

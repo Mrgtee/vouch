@@ -1,3 +1,4 @@
+import { buildDocumentArtifacts } from "./documents.js";
 import { cleanText } from "./text.js";
 
 export function formatApplicationPacketResult(result) {
@@ -6,6 +7,7 @@ export function formatApplicationPacketResult(result) {
   const title = buildDeliverableTitle(packet);
   const summary = buildDeliverableSummary(packet, generation);
   const markdown = buildDeliverableMarkdown(packet, generation, title, summary);
+  const files = buildDocumentArtifacts({ title, markdown });
 
   return {
     ok: true,
@@ -14,11 +16,13 @@ export function formatApplicationPacketResult(result) {
     type: "vouch.application_packet",
     title,
     summary,
+    files,
     deliverable: {
       title,
       summary,
-      format: "markdown+json",
+      format: "markdown+json+pdf+docx",
       markdown,
+      files,
       packet,
       generation
     },
@@ -31,7 +35,8 @@ export function formatApplicationPacketResult(result) {
         type: "json",
         json: {
           packet,
-          generation
+          generation,
+          files
         }
       }
     ],
@@ -39,7 +44,8 @@ export function formatApplicationPacketResult(result) {
       service: result.service || "Vouch",
       version: result.version,
       packet,
-      generation
+      generation,
+      files
     },
     packet,
     generation
@@ -148,7 +154,7 @@ function formatGapBenchmark(items) {
 
   return items.map((item) => {
     const status = cleanText(item.status) || "unknown";
-    const requirement = cleanText(item.requirement) || "requirement";
+    const requirement = cleanText(item.label) || cleanText(item.requirement) || "requirement";
     const recommendation = cleanText(item.recommendation);
     return `- ${requirement}: ${status}${recommendation ? ` - ${recommendation}` : ""}`;
   }).join("\n");
