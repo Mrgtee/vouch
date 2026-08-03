@@ -147,3 +147,59 @@ test("polishes local packet labels for healthcare product operations flow", () =
   assert.ok(labels.includes("clinical stakeholder coordination") || labels.includes("LLM API integration"));
   assert.ok(packet.beforeAfterBulletImprovements.length >= 2);
 });
+
+
+const amaraResumeText = `
+Amara Okafor | Customer Operations Lead | amara.okafor@example.com
+Summary: Customer operations lead with 8 years improving support workflows, onboarding playbooks, fraud-review handoffs, and customer success operations for fintech teams. Experienced in Zendesk, Salesforce, SQL, Looker, Stripe, and AI-assisted macros.
+Experience:
+Customer Operations Lead at PayPilot (2022 - Present): Led 18 support specialists across Lagos and remote teams. Reduced first-response time by 42% by redesigning Zendesk routing, operating playbooks, and QA scorecards. Partnered with product and engineering to launch AI-assisted ticket summaries and fraud-review escalation workflows. Built SQL dashboards to measure operational impact and executive service metrics.
+Support Operations Manager at NovaPay (2018 - 2022): Improved onboarding completion by 24%, reduced manual refund review by 31%, and coordinated compliance-sensitive launches across support, risk, and product.
+Skills: Customer support operations, support tooling, Zendesk, Salesforce, SQL, Looker, Stripe, fraud review, playbooks, AI-assisted macros, stakeholder management.
+`;
+
+const stripeCustomerOpsJobDescription = `
+AI Customer Operations Lead role at Stripe. Own global customer support operations, launch AI-powered support workflows, define agent productivity metrics, partner with product and engineering on support tooling, manage compliance-sensitive launches, improve fraud-review handoffs, build clear operating playbooks, and present operational impact to executives.
+`;
+
+test("polishes customer operations labels for the Stripe paid flow", () => {
+  const result = createApplicationPacket({
+    resumeText: amaraResumeText,
+    targetJobs: [
+      {
+        title: "AI Customer Operations Lead",
+        company: "Stripe",
+        description: stripeCustomerOpsJobDescription
+      }
+    ],
+    candidatePreferences: {
+      location: "Remote or Lagos",
+      salaryGoal: "180000 USD total compensation",
+      seniority: "executive"
+    }
+  });
+
+  const packet = result.packet;
+  const labels = packet.gapBenchmark.map((gap) => gap.label || gap.requirement);
+  const userFacing = [
+    packet.atsResume,
+    packet.recruiterSummary,
+    packet.applicationStrategy.portfolioPriority,
+    ...packet.interviewPrep.map((item) => item.question),
+    ...packet.portfolioProjects.map((item) => item.title + " " + item.objective),
+    ...labels
+  ].join("\n");
+
+  assert.match(packet.atsResume, /^Amara Okafor\nAI Customer Operations Lead/m);
+  assert.ok(packet.fitScoreAfter >= packet.fitScoreBefore);
+  assert.match(packet.recruiterSummary, /no major proof gap detected/);
+  assert.doesNotMatch(packet.recruiterSummary, /highest-risk missing requirement/);
+  assert.ok(labels.includes("support operations"));
+  assert.ok(labels.includes("operating playbooks"));
+  assert.ok(labels.includes("compliance-sensitive launch governance"));
+  assert.ok(labels.includes("executive-ready communication"));
+  assert.ok(labels.every((label) => !/^(platform|ai-powered|clear|define|global|partner|executives)$/i.test(label)));
+  assert.doesNotMatch(userFacing, /Ai-powered proof sprint|Clear proof sprint|Compliance-sensitive proof sprint|Partner proof sprint|Executives proof sprint/i);
+  assert.doesNotMatch(packet.atsResume, /Proof to add before submitting: .*(platform|ai-powered|clear|define|global)/i);
+  assert.equal(packet.portfolioProjects[0]?.title, "Offer-readiness evidence sprint");
+});

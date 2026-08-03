@@ -4,7 +4,7 @@ import {
   inferTargetHeadline,
   summarizeResumeProfile
 } from "./benchmark.js";
-import { cleanText, extractNumbers, hasKeyword } from "./text.js";
+import { cleanText, extractNumbers, hasKeyword, pickEvidenceLines } from "./text.js";
 import { validateApplicationPacketRequest } from "./validation.js";
 
 const LOW_SIGNAL_GAPS = new Set([
@@ -13,6 +13,7 @@ const LOW_SIGNAL_GAPS = new Set([
   "best",
   "build",
   "candidate",
+  "clear",
   "collaborate",
   "communication",
   "complex",
@@ -21,6 +22,7 @@ const LOW_SIGNAL_GAPS = new Set([
   "contribute",
   "data",
   "delivery",
+  "define",
   "design",
   "does",
   "drive",
@@ -29,13 +31,16 @@ const LOW_SIGNAL_GAPS = new Set([
   "engineering",
   "environments",
   "features",
+  "global",
   "improve",
   "initiatives",
   "management",
+  "launches",
   "manage",
   "measure",
   "metrics",
   "model",
+  "platform",
   "multi-service",
   "practices",
   "productivity",
@@ -57,35 +62,53 @@ const DISPLAY_KEYWORDS = new Map([
   ["api contracts", "API contract collaboration"],
   ["apis", "API design and integration"],
   ["automation", "workflow automation"],
+  ["ai-powered", "AI-assisted support automation"],
   ["ai operations", "AI operations product strategy"],
   ["backend systems", "backend systems"],
   ["bi dashboards", "BI dashboards"],
   ["ci/cd", "CI/CD automation"],
+  ["compliance-sensitive", "compliance-sensitive launch governance"],
+  ["compliance-sensitive launch governance", "compliance-sensitive launch governance"],
+  ["customer", "customer support operations"],
   ["clinical", "clinical stakeholder coordination"],
   ["clinical stakeholder coordination", "clinical stakeholder coordination"],
   ["diagnostics", "funnel diagnostics"],
   ["distributed", "distributed systems"],
   ["distributed environments", "distributed systems"],
+  ["fintech", "fintech operations"],
+  ["fraud", "fraud and risk escalation"],
   ["healthcare", "healthcare domain experience"],
   ["healthcare compliance", "healthcare compliance"],
   ["executive", "executive-ready communication"],
+  ["executives", "executive-ready communication"],
   ["github actions", "GitHub Actions CI/CD"],
   ["impact", "measurable impact"],
+  ["launch", "launch governance"],
+  ["launch governance", "launch governance"],
   ["operational impact", "operational impact measurement"],
+  ["lead", "team leadership"],
   ["llm", "LLM integration"],
   ["llm apis", "LLM API integration"],
   ["microservices", "microservices architecture"],
   ["microservices architecture", "microservices architecture"],
   ["openai", "OpenAI API integration"],
   ["openai apis", "OpenAI API integration"],
+  ["operations", "support operations"],
+  ["partner", "product-engineering partnership"],
+  ["partnership", "product-engineering partnership"],
+  ["product-engineering partnership", "product-engineering partnership"],
   ["product", "product strategy"],
   ["product management", "product management"],
   ["product operations", "product operations"],
+  ["operating playbooks", "operating playbooks"],
+  ["playbook", "operating playbooks"],
+  ["playbooks", "operating playbooks"],
   ["product specs", "product specification writing"],
   ["pipelines", "delivery pipelines"],
   ["react", "React frontends"],
   ["react frontends", "React frontends"],
   ["requirements definition", "requirements definition"],
+  ["support operations", "support operations"],
   ["roadmap ownership", "roadmap ownership"],
   ["sql", "SQL"],
   ["stakeholder", "stakeholder communication"],
@@ -98,22 +121,43 @@ const CANONICAL_KEYWORDS = new Map([
   ["agile roadmaps", "roadmap ownership"],
   ["ai operations", "ai operations"],
   ["ai-assisted", "llm apis"],
+  ["ai-assisted macros", "llm apis"],
+  ["ai-powered", "llm apis"],
   ["apis", "api"],
   ["api contracts", "api contracts"],
   ["llm apis", "llm apis"],
   ["llm powered", "llm apis"],
   ["llm-powered", "llm apis"],
   ["llm-powered workflow automation", "llm apis"],
+  ["llm-assisted", "llm apis"],
+  ["llm-assisted support workflows", "llm apis"],
   ["openai", "openai apis"],
   ["openai apis", "openai apis"],
+  ["customer support", "support operations"],
+  ["customer support operations", "support operations"],
   ["operational impact", "operational impact"],
+  ["operational impact measurement", "operational impact"],
   ["genai", "llm apis"],
   ["genai-powered", "llm apis"],
+  ["compliance-sensitive launches", "compliance-sensitive launch governance"],
   ["healthcare compliance", "healthcare compliance"],
+  ["executive communication", "executive"],
+  ["executive-ready communication", "executive"],
+  ["executives", "executive"],
   ["generative ai", "llm apis"],
   ["llms", "llm"],
   ["github actions", "ci/cd"],
   ["patient-support", "support operations"],
+  ["fraud-review", "fraud"],
+  ["fraud review", "fraud"],
+  ["fraud-review handoffs", "fraud"],
+  ["launch", "launch governance"],
+  ["launched", "launch governance"],
+  ["launches", "launch governance"],
+  ["partner", "product-engineering partnership"],
+  ["partnered", "product-engineering partnership"],
+  ["partnering", "product-engineering partnership"],
+  ["partnership", "product-engineering partnership"],
   ["pipeline", "ci/cd"],
   ["pipelines", "ci/cd"],
   ["microservices", "microservices architecture"],
@@ -127,6 +171,8 @@ const CANONICAL_KEYWORDS = new Map([
   ["product specs", "product specs"],
   ["requirements", "requirements definition"],
   ["requirements definition", "requirements definition"],
+  ["product-engineering partnership", "product-engineering partnership"],
+  ["launch governance", "launch governance"],
   ["roadmap", "roadmap ownership"],
   ["roadmaps", "roadmap ownership"]
 ]);
@@ -435,13 +481,18 @@ function buildRecruiterSummary({ candidateName, targetHeadline, request, analysi
   const decision = screenDecision(analysis.scoreAfter);
   const strongestBullet = evidenceBullets[0] || "No single high-confidence proof bullet was found.";
 
+  const mainRisk = formatList(topMissing.slice(0, 5));
+  const recommendation = mainRisk
+    ? "Recommendation: submit after the candidate verifies every rewritten bullet and adds proof for the highest-risk missing requirement."
+    : "Recommendation: submit after a final truth check on the rewritten bullets, metrics, and role-specific positioning.";
+
   return [
     `${candidateName} is a ${decision.toLowerCase()} for ${targetHeadline.replace(/ Candidate$/, "")} with a before-fit score of ${analysis.scoreBefore} and optimized-fit score of ${analysis.scoreAfter}.`,
     `Best submission angle: ${formatList(topMatched.slice(0, 6)) || "clearer role-specific evidence is needed"}.`,
     targetCompanies ? `Target company reviewed: ${targetCompanies}.` : "Target company was not specified.",
     `Strongest evidence to put near the top: ${strongestBullet}`,
-    `Main risk to handle honestly: ${formatList(topMissing.slice(0, 5)) || "no major proof gap detected"}.`,
-    "Recommendation: submit after the candidate verifies every rewritten bullet and adds proof for the highest-risk missing requirement."
+    `Main risk to handle honestly: ${mainRisk || "no major proof gap detected"}.`,
+    recommendation
   ].join("\n");
 }
 
@@ -517,9 +568,9 @@ function buildPortfolioProjects(missingKeywords, targetJobs) {
   if (usefulGaps.length === 0) {
     return [
       {
-        title: "Role evidence proof sprint",
-        objective: `Create a concise case study that proves readiness for ${targetJobs[0].title}.`,
-        deliverable: "One-page case study with problem, constraints, architecture, tradeoffs, result, and screenshots or sample output.",
+        title: "Offer-readiness evidence sprint",
+        objective: `Create a concise case study that packages the strongest verified result for ${targetJobs[0].title}.`,
+        deliverable: "One-page case study with problem, constraints, operating method, measurable result, and screenshots or sample output.",
         timeline: "2-5 focused hours"
       }
     ];
@@ -625,12 +676,13 @@ function buildPremiumGapBenchmark({ gaps, topMissing, resumeText }) {
     }
 
     const evidence = Array.isArray(gap.evidence) ? gap.evidence : [];
+    const canonicalEvidence = evidence.length > 0 ? evidence : pickEvidenceLines(resumeText, requirement, 2);
     byRequirement.set(requirement, {
       requirement,
       label: displayKeyword(requirement),
-      status: evidence.length > 0 || hasKeyword(resumeText, requirement) ? gap.status : "missing",
-      evidence,
-      recommendation: recommendationForGap(requirement, evidence)
+      status: canonicalEvidence.length > 0 ? (evidence.length > 0 ? gap.status : "present") : "missing",
+      evidence: canonicalEvidence,
+      recommendation: recommendationForGap(requirement, canonicalEvidence)
     });
   }
 
