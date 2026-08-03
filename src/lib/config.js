@@ -4,6 +4,7 @@ const X_LAYER_NETWORK = "eip155:196";
 const DEFAULT_PRICE = "$0.20";
 const DEFAULT_OKX_BASE_URL = "https://web3.okx.com";
 const DEFAULT_OPENAI_MODEL = "gpt-5";
+const DEFAULT_OPENAI_TIMEOUT_MS = 20_000;
 const DEFAULT_RATE_LIMIT_WINDOW_MS = 60_000;
 const DEFAULT_PUBLIC_RATE_LIMIT_MAX = 120;
 const DEFAULT_PACKET_RATE_LIMIT_MAX = 30;
@@ -41,7 +42,7 @@ export function getRuntimeConfig(env = process.env) {
       provider: normalizeAiProvider(env.VOUCH_AI_PROVIDER),
       model: cleanEnv(env.VOUCH_OPENAI_MODEL) || DEFAULT_OPENAI_MODEL,
       apiKey: cleanEnv(env.OPENAI_API_KEY),
-      timeoutMs: normalizeInteger(env.VOUCH_OPENAI_TIMEOUT_MS, 45_000),
+      timeoutMs: normalizeInteger(env.VOUCH_OPENAI_TIMEOUT_MS, DEFAULT_OPENAI_TIMEOUT_MS),
       maxOutputTokens: normalizeInteger(env.VOUCH_OPENAI_MAX_OUTPUT_TOKENS, 7_000)
     },
     security: {

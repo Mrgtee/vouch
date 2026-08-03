@@ -149,3 +149,25 @@ test("falls back to the local benchmark packet when OpenAI is unavailable", asyn
   assert.equal(Array.isArray(result.packet.applicationStrategy.firstWeekActions), true);
   assert.equal(Array.isArray(result.packet.beforeAfterBulletImprovements), true);
 });
+
+
+test("falls back when OpenAI generation exceeds the configured timeout", async () => {
+  const client = {
+    responses: {
+      create: () => new Promise(() => {})
+    }
+  };
+
+  const startedAt = Date.now();
+  const result = await createApplicationPacketWithAi(payload, {
+    provider: "openai",
+    model: "gpt-test",
+    client,
+    timeoutMs: 10
+  });
+
+  assert.equal(result.generation.provider, "local_fallback");
+  assert.equal(result.generation.fallbackUsed, true);
+  assert.equal(result.generation.errorType, "TimeoutError");
+  assert.ok(Date.now() - startedAt < 1000);
+});

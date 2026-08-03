@@ -5,6 +5,8 @@ import { validateApplicationPacketRequest } from "./validation.js";
 
 const LOCAL_MODEL = "vouch-local-benchmark";
 const DEFAULT_MODEL = "gpt-5";
+const DEFAULT_TIMEOUT_MS = 20_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 7_000;
 
 export async function createApplicationPacketWithAi(rawPayload, options = {}) {
   const request = validateApplicationPacketRequest(rawPayload);
@@ -35,21 +37,24 @@ export async function createApplicationPacketWithAi(rawPayload, options = {}) {
     const client = aiOptions.client ?? new OpenAI({
       apiKey: aiOptions.apiKey || undefined,
       timeout: aiOptions.timeoutMs,
-      maxRetries: 1
+      maxRetries: 0
     });
-    const response = await client.responses.create({
-      model: aiOptions.model,
-      input: buildOpenAiInput(request, localPacket),
-      text: {
-        format: {
-          type: "json_schema",
-          name: "vouch_application_packet",
-          strict: true,
-          schema: APPLICATION_PACKET_SCHEMA
-        }
-      },
-      max_output_tokens: aiOptions.maxOutputTokens
-    });
+    const response = await runOpenAiWithTimeout(
+      client.responses.create({
+        model: aiOptions.model,
+        input: buildOpenAiInput(request, localPacket),
+        text: {
+          format: {
+            type: "json_schema",
+            name: "vouch_application_packet",
+            strict: true,
+            schema: APPLICATION_PACKET_SCHEMA
+          }
+        },
+        max_output_tokens: aiOptions.maxOutputTokens
+      }),
+      aiOptions.timeoutMs
+    );
     const aiPacket = parseOpenAiPacket(response);
 
     return mergeOpenAiPacket(localPacket, aiPacket, aiOptions.model);
@@ -72,9 +77,23 @@ function normalizeAiOptions(options) {
     model: cleanText(options.model || DEFAULT_MODEL),
     apiKey: cleanText(options.apiKey),
     client: options.client,
-    timeoutMs: Number.isInteger(options.timeoutMs) ? options.timeoutMs : 45_000,
-    maxOutputTokens: Number.isInteger(options.maxOutputTokens) ? options.maxOutputTokens : 7_000
+    timeoutMs: Number.isInteger(options.timeoutMs) ? options.timeoutMs : DEFAULT_TIMEOUT_MS,
+    maxOutputTokens: Number.isInteger(options.maxOutputTokens) ? options.maxOutputTokens : DEFAULT_MAX_OUTPUT_TOKENS
   };
+}
+
+function runOpenAiWithTimeout(promise, timeoutMs) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error("OpenAI packet generation timed out.");
+      error.name = "TimeoutError";
+      reject(error);
+    }, timeoutMs);
+    timeoutId.unref?.();
+  });
+
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timeoutId));
 }
 
 function buildOpenAiInput(request, localPacket) {

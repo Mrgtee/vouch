@@ -37,6 +37,7 @@ test("accepts paid mode with x402 payment environment", () => {
 
   assert.equal(config.payment.isPaid, true);
   assert.equal(config.payment.facilitatorBaseUrl, "https://web3.okx.com");
+  assert.equal(config.ai.timeoutMs, 20_000);
   assert.equal(publicPayment.mode, "paid");
   assert.equal(publicPayment.network, "eip155:196");
   assert.equal(publicPayment.price, "$0.20");
